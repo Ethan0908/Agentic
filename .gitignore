@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.venv/
+.env
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+.next/
+out/
+dist/
+
+# OS/editor
+.DS_Store
+.idea/
+.vscode/
+
+# Generated sites
+.generated-sites/
+
+# Local database dumps
+*.sql
+*.dump
