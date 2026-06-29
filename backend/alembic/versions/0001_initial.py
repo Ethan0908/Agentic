@@ -9,7 +9,7 @@ down_revision = None
 branch_labels = None
 depends_on = None
 
-lead_status = sa.Enum(
+lead_status = postgresql.ENUM(
     "DISCOVERED",
     "WEBSITE_FOUND",
     "EMAIL_FOUND",
@@ -29,15 +29,17 @@ lead_status = sa.Enum(
     "CLIENT",
     "ARCHIVED",
     name="leadstatus",
+    create_type=False,
 )
 
-email_validation_status = sa.Enum(
+email_validation_status = postgresql.ENUM(
     "UNKNOWN",
     "VALID",
     "RISKY",
     "CATCH_ALL",
     "INVALID",
     name="emailvalidationstatus",
+    create_type=False,
 )
 
 
