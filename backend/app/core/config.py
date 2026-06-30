@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     codex_enabled: bool = True
     codex_workdir: str = "/app/.generated-sites"
     codex_default_model: str | None = None
+    codex_timeout_seconds: int = 900
 
     smtp_host: str | None = None
     smtp_port: int = 25
@@ -28,7 +29,11 @@ class Settings(BaseSettings):
 
     github_token: str | None = None
     github_owner: str = "Ethan0908"
-    github_template_repo: str = "business-site-template"
+    github_template_repo: str | None = None
+    github_generated_repo_private: bool = True
+    github_archive_repo: str = "Agentic"
+    github_archive_branch: str = "main"
+    github_archive_path: str = "business-websites"
 
     vercel_token: str | None = None
     vercel_team_id: str | None = None
