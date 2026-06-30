@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -9,8 +10,21 @@ from app.core.config import get_settings
 from app.models import Business
 
 
+CODEX_OUTPUT_FILE = "codex-output.json"
+
+
 def _codex_command() -> str | None:
     return shutil.which("codex")
+
+
+def normalise_repo_name(value: str | None, fallback: str = "generated-business-site") -> str:
+    raw = (value or fallback).strip().lower()
+    raw = raw.split("/", 1)[1] if "/" in raw else raw
+    raw = re.sub(r"[^a-z0-9._-]+", "-", raw)
+    raw = re.sub(r"[-_.]{2,}", "-", raw).strip("-._")
+    if not raw:
+        raw = fallback
+    return raw[:90]
 
 
 def _business_context(business: Business, business_json: dict) -> str:
@@ -30,7 +44,26 @@ def _business_context(business: Business, business_json: dict) -> str:
     )
 
 
-async def improve_site_with_codex(site_dir: Path, business: Business, business_json: dict) -> dict:
+def read_codex_output(site_dir: Path, fallback_repo_name: str) -> dict:
+    path = site_dir / CODEX_OUTPUT_FILE
+    if not path.exists():
+        return {"repo_name": normalise_repo_name(fallback_repo_name), "metadata_found": False}
+
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {"repo_name": normalise_repo_name(fallback_repo_name), "metadata_found": False, "metadata_error": "invalid_json"}
+
+    repo_name = normalise_repo_name(data.get("repo_name"), fallback=fallback_repo_name)
+    return {
+        "repo_name": repo_name,
+        "metadata_found": True,
+        "site_title": data.get("site_title"),
+        "short_description": data.get("short_description"),
+    }
+
+
+async def improve_site_with_codex(site_dir: Path, business: Business, business_json: dict, fallback_repo_name: str) -> dict:
     """Use the logged-in Codex CLI to improve one generated website folder.
 
     This expects the backend container to have the Codex CLI installed and the
@@ -39,7 +72,8 @@ async def improve_site_with_codex(site_dir: Path, business: Business, business_j
     """
     settings = get_settings()
     if not settings.codex_enabled:
-        return {"codex_ran": False, "reason": "CODEX_ENABLED=false"}
+        metadata = read_codex_output(site_dir, fallback_repo_name)
+        return {"codex_ran": False, "reason": "CODEX_ENABLED=false", **metadata}
 
     codex = _codex_command()
     if not codex:
@@ -59,16 +93,23 @@ Business context:
 {_business_context(business, business_json)}
 
 Task:
-- Improve the website so it looks like a premium, mobile-first business landing page.
-- Use the existing business.json data and keep the site truthful.
-- Keep it a simple Next.js app router project.
+- Create a premium, mobile-first business landing page in this existing Next.js app.
+- Use the supplied business_json and keep every claim truthful.
+- Do not rely on the original business website URL to generate content. Treat it only as an optional outbound reference link if present.
+- Keep the site self-contained, polished, fast, and conversion-focused.
+- Keep calls, address/directions, email, phone, and original website link visible when available.
 - Do not add new npm packages.
-- Do not use external images that require scraping or downloading.
-- Make the homepage polished, clear, and conversion-focused.
-- Keep calls, directions/address, original website link, and email/phone visible when available.
-- Preserve package.json, next.config.mjs, tsconfig.json, and business.json unless a small fix is required.
+- Do not use external images that require scraping/downloading.
 - Do not send emails, create GitHub repos, deploy to Vercel, or modify files outside this folder.
-- Finish by leaving the edited files on disk.
+- Choose a clean GitHub/Vercel-safe repository name for this generated site.
+- Write exactly one JSON metadata file named {CODEX_OUTPUT_FILE} in the project root with this shape:
+  {{
+    "repo_name": "lowercase-dash-separated-repo-name",
+    "site_title": "short public site title",
+    "short_description": "one sentence summary"
+  }}
+- The repo_name must use only lowercase letters, numbers, dashes, underscores, or dots. No spaces. No owner prefix. No slash.
+- Finish by leaving the edited files and {CODEX_OUTPUT_FILE} on disk.
 """.strip()
 
     command = [
@@ -97,8 +138,10 @@ Task:
             f"exit={result.returncode}\nSTDOUT:\n{result.stdout[-4000:]}\nSTDERR:\n{result.stderr[-4000:]}"
         )
 
+    metadata = read_codex_output(site_dir, fallback_repo_name)
     return {
         "codex_ran": True,
+        **metadata,
         "stdout_tail": result.stdout[-2000:],
         "stderr_tail": result.stderr[-2000:],
     }
