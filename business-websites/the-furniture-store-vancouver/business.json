@@ -1,0 +1,19 @@
+{
+  "name": "The furniture store",
+  "category": "Local Business",
+  "city": "Vancouver",
+  "phone": null,
+  "email": "ew2832@nyu.edu",
+  "address": null,
+  "originalWebsite": "thefurniturestore.co",
+  "previewWebsite": null,
+  "headline": "A cleaner website concept for The furniture store",
+  "subheadline": "Fast, mobile-friendly, and focused on calls, directions, and new customers.",
+  "services": [
+    "Mobile-first landing page",
+    "Clear contact section",
+    "Simple service highlights",
+    "Fast Vercel hosting"
+  ],
+  "cta": "Contact us today"
+}
