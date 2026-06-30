@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import json
+import re
 from pathlib import Path
 
 import httpx
@@ -10,6 +12,15 @@ from app.core.config import get_settings
 
 IGNORED_DIRS = {".git", ".next", ".vercel", "node_modules", "dist", "build"}
 IGNORED_FILES = {".DS_Store"}
+CODEX_OUTPUT_FILE = "codex-output.json"
+
+
+def _normalise_repo_name(value: str | None, fallback: str = "generated-business-site") -> str:
+    raw = (value or fallback).strip().lower()
+    raw = raw.split("/", 1)[1] if "/" in raw else raw
+    raw = re.sub(r"[^a-z0-9._-]+", "-", raw)
+    raw = re.sub(r"[-_.]{2,}", "-", raw).strip("-._")
+    return (raw or fallback)[:90]
 
 
 class GitHubClient:
@@ -33,6 +44,21 @@ class GitHubClient:
         owner, repo = self._split_repo(repo_name_or_full_name)
         return f"https://api.github.com/repos/{owner}/{repo}"
 
+    def _codex_preferred_repo_name(self, fallback_repo_name: str) -> str:
+        """Read Codex's repo_name from /app/.generated-sites/<fallback>/codex-output.json.
+
+        This lets Codex pick the repo name without changing the main API route.
+        """
+        fallback = _normalise_repo_name(fallback_repo_name)
+        metadata_path = Path(self.settings.codex_workdir) / fallback / CODEX_OUTPUT_FILE
+        if not metadata_path.exists():
+            return fallback
+        try:
+            data = json.loads(metadata_path.read_text(encoding="utf-8"))
+        except Exception:
+            return fallback
+        return _normalise_repo_name(data.get("repo_name"), fallback=fallback)
+
     async def get_repo(self, repo_name_or_full_name: str) -> dict:
         async with httpx.AsyncClient(timeout=30) as client:
             response = await client.get(self._repo_url(repo_name_or_full_name), headers=self.headers)
@@ -40,12 +66,8 @@ class GitHubClient:
             return response.json()
 
     async def create_repo(self, repo_name: str, private: bool = True) -> dict:
-        """Create or reuse a generated repo.
-
-        GitHub's /user/repos endpoint creates the repo under the authenticated
-        account. We store the returned full_name later, so later steps do not
-        have to guess the owner again.
-        """
+        """Create or reuse a generated repo."""
+        repo_name = self._codex_preferred_repo_name(repo_name)
         try:
             return await self.get_repo(repo_name)
         except Exception:
@@ -60,13 +82,12 @@ class GitHubClient:
         async with httpx.AsyncClient(timeout=30) as client:
             response = await client.post("https://api.github.com/user/repos", headers=self.headers, json=payload)
             if response.status_code == 422:
-                # Repo probably exists. Try the configured owner one more time,
-                # then return the precise API error if that lookup still fails.
                 return await self.get_repo(repo_name)
             response.raise_for_status()
             return response.json()
 
     async def create_repo_from_template(self, repo_name: str, private: bool = True) -> dict:
+        repo_name = self._codex_preferred_repo_name(repo_name)
         if not self.settings.github_template_repo:
             return await self.create_repo(repo_name, private=private)
 
