@@ -32,7 +32,24 @@ class GitHubClient:
             response.raise_for_status()
             return response.json()
 
+    async def create_repo(self, repo_name: str, private: bool = True) -> dict:
+        payload = {
+            "name": repo_name,
+            "private": private,
+            "auto_init": True,
+            "description": "Generated business website preview.",
+        }
+        async with httpx.AsyncClient(timeout=30) as client:
+            response = await client.post("https://api.github.com/user/repos", headers=self.headers, json=payload)
+            if response.status_code == 422:
+                return await self.get_repo(repo_name)
+            response.raise_for_status()
+            return response.json()
+
     async def create_repo_from_template(self, repo_name: str, private: bool = True) -> dict:
+        if not self.settings.github_template_repo:
+            return await self.create_repo(repo_name, private=private)
+
         url = (
             f"https://api.github.com/repos/{self.settings.github_owner}/"
             f"{self.settings.github_template_repo}/generate"
@@ -55,7 +72,7 @@ class GitHubClient:
         url = f"{self._repo_url(repo_name)}/git/ref/heads/{branch}"
         last_error: Exception | None = None
         async with httpx.AsyncClient(timeout=30) as client:
-            for _ in range(8):
+            for _ in range(10):
                 try:
                     response = await client.get(url, headers=self.headers)
                     response.raise_for_status()
@@ -65,10 +82,11 @@ class GitHubClient:
                     await asyncio.sleep(1)
         raise RuntimeError(f"Could not read GitHub branch ref for {repo_name}: {last_error}")
 
-    async def upload_directory(self, repo_name: str, source_dir: Path, branch: str = "main") -> dict:
+    def _directory_entries(self, source_dir: Path, target_prefix: str | None = None) -> list[dict]:
         if not source_dir.exists() or not source_dir.is_dir():
             raise FileNotFoundError(f"Generated site folder not found: {source_dir}")
 
+        clean_prefix = (target_prefix or "").strip("/")
         entries: list[dict] = []
         for path in sorted(source_dir.rglob("*")):
             if not path.is_file():
@@ -81,11 +99,13 @@ class GitHubClient:
             try:
                 content = path.read_text(encoding="utf-8")
             except UnicodeDecodeError:
-                # Current site template is text-only. Skip unexpected binary files.
                 continue
+
+            relative_path = "/".join(relative_parts)
+            target_path = f"{clean_prefix}/{relative_path}" if clean_prefix else relative_path
             entries.append(
                 {
-                    "path": "/".join(relative_parts),
+                    "path": target_path,
                     "mode": "100644",
                     "type": "blob",
                     "content": content,
@@ -94,8 +114,10 @@ class GitHubClient:
 
         if not entries:
             raise RuntimeError(f"No uploadable files found in {source_dir}")
+        return entries
 
-        async with httpx.AsyncClient(timeout=60) as client:
+    async def _commit_entries(self, repo_name: str, entries: list[dict], branch: str, message: str) -> dict:
+        async with httpx.AsyncClient(timeout=90) as client:
             ref = await self._get_branch_ref(repo_name, branch)
             current_commit_sha = ref["object"]["sha"]
 
@@ -118,7 +140,7 @@ class GitHubClient:
                 f"{self._repo_url(repo_name)}/git/commits",
                 headers=self.headers,
                 json={
-                    "message": "Publish generated business website",
+                    "message": message,
                     "tree": new_tree_sha,
                     "parents": [current_commit_sha],
                 },
@@ -134,6 +156,14 @@ class GitHubClient:
             update_ref_response.raise_for_status()
 
         return {"commit_sha": new_commit["sha"], "files_uploaded": len(entries), "branch": branch}
+
+    async def upload_directory(self, repo_name: str, source_dir: Path, branch: str = "main") -> dict:
+        entries = self._directory_entries(source_dir)
+        return await self._commit_entries(repo_name, entries, branch, "Publish generated business website")
+
+    async def upload_directory_to_path(self, repo_name: str, source_dir: Path, target_prefix: str, branch: str = "main") -> dict:
+        entries = self._directory_entries(source_dir, target_prefix=target_prefix)
+        return await self._commit_entries(repo_name, entries, branch, f"Archive generated website at {target_prefix}")
 
     async def delete_repo(self, repo_name: str) -> None:
         async with httpx.AsyncClient(timeout=30) as client:
