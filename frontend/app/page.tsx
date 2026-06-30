@@ -120,7 +120,7 @@ export default function DashboardPage() {
 
   async function buildSite(id: number) {
     await runAction("Building site with Codex, GitHub, and Vercel", () =>
-      fetch(`${apiBase}/businesses/${id}/build-publish-deploy-site`, { method: "POST" })
+      fetch(`${apiBase}/businesses/${id}/build-site`, { method: "POST" })
     );
   }
 
