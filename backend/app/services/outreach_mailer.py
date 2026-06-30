@@ -5,8 +5,6 @@ import smtplib
 from email.message import EmailMessage
 from email.utils import formataddr
 
-import httpx
-
 from app.core.config import get_settings
 from app.models import Business
 
@@ -33,81 +31,13 @@ def build_pitch_email(business_name: str, website_url: str | None, city: str | N
 
 
 async def build_pitch_email_with_gpt(business: Business, website_url: str | None = None) -> tuple[str, str]:
-    """Generate a concise outreach email with the OpenAI API when configured.
+    """Compatibility wrapper.
 
-    Falls back to the deterministic template if OPENAI_API_KEY is missing or the
-    API response cannot be parsed. This keeps the Pi usable without API access.
+    The project intentionally avoids OpenAI API keys. Account-authenticated Codex
+    work should happen through the Codex CLI/session on the Pi for website and
+    template generation. Email copy stays deterministic unless a reviewed Codex
+    workflow writes copy into the database later.
     """
-    settings = get_settings()
-    if not settings.openai_api_key:
-        return build_pitch_email(business.name, website_url, business.city)
-
-    prompt = {
-        "business": {
-            "name": business.name,
-            "city": business.city,
-            "category": business.category,
-            "phone": business.phone,
-            "website_url": business.website_url,
-            "address": business.address,
-        },
-        "preview_website_url": website_url,
-        "requirements": [
-            "Write a short cold outreach email.",
-            "Mention the preview website link if provided.",
-            "Do not overpromise results.",
-            "Keep it under 140 words.",
-            "Include an unsubscribe sentence.",
-            "Return JSON only with keys subject and body.",
-        ],
-    }
-
-    try:
-        async with httpx.AsyncClient(timeout=45) as client:
-            response = await client.post(
-                "https://api.openai.com/v1/responses",
-                headers={
-                    "Authorization": f"Bearer {settings.openai_api_key}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": settings.openai_email_model,
-                    "input": [
-                        {
-                            "role": "system",
-                            "content": "You write compliant, concise B2B outreach emails for website preview offers.",
-                        },
-                        {"role": "user", "content": json.dumps(prompt)},
-                    ],
-                    "text": {"format": {"type": "json_object"}},
-                },
-            )
-            response.raise_for_status()
-            data = response.json()
-    except Exception:
-        return build_pitch_email(business.name, website_url, business.city)
-
-    output_text = data.get("output_text")
-    if not output_text:
-        # Robust fallback for SDK-style response payloads.
-        output_parts = data.get("output") or []
-        chunks: list[str] = []
-        for item in output_parts:
-            for content in item.get("content", []) if isinstance(item, dict) else []:
-                text = content.get("text") if isinstance(content, dict) else None
-                if text:
-                    chunks.append(text)
-        output_text = "".join(chunks)
-
-    try:
-        parsed = json.loads(output_text or "{}")
-        subject = str(parsed.get("subject") or f"Quick website mockup for {business.name}").strip()
-        body = str(parsed.get("body") or "").strip()
-        if subject and body:
-            return subject[:255], body
-    except Exception:
-        pass
-
     return build_pitch_email(business.name, website_url, business.city)
 
 
