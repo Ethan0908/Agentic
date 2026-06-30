@@ -17,12 +17,13 @@ class Settings(BaseSettings):
     codex_default_model: str | None = None
 
     smtp_host: str | None = None
-    smtp_port: int = 587
+    smtp_port: int = 25
     smtp_username: str | None = None
     smtp_password: str | None = None
     smtp_from_email: str | None = None
     smtp_from_name: str = "Denny"
-    smtp_use_tls: bool = True
+    smtp_use_tls: bool = False
+    smtp_use_ssl: bool = False
     smtp_reply_to: str | None = None
 
     github_token: str | None = None
