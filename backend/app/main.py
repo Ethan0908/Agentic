@@ -79,19 +79,23 @@ async def create_codex_generated_site(db: Session, business: Business) -> Websit
     site_path = Path(generated["local_path"])
 
     try:
-        codex_result = await improve_site_with_codex(site_path, business, generated["business_json"])
+        codex_result = await improve_site_with_codex(site_path, business, generated["business_json"], fallback_repo_name=generated["slug"])
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Codex site generation failed: {exc}") from exc
 
+    # Codex chooses the repo/project name by writing codex-output.json. Fall back
+    # to the deterministic slug only if Codex did not produce metadata.
+    repo_name = short_repo_name(codex_result.get("repo_name"), generated["slug"])
+
     website = Website(
         business_id=business.id,
-        github_repo_name=generated["slug"],
+        github_repo_name=repo_name,
         local_path=generated["local_path"],
         deployment_status="CODEX_GENERATED" if codex_result.get("codex_ran") else "LOCAL_GENERATED",
     )
     business.status = LeadStatus.SITE_BUILT
     db.add(website)
-    log_event(db, business.id, "site.generated", {"generated": generated, "codex": codex_result})
+    log_event(db, business.id, "site.generated", {"generated": generated, "codex": codex_result, "repo_name": repo_name})
     db.commit()
     db.refresh(website)
     return website
