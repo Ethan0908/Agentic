@@ -12,19 +12,24 @@ class Settings(BaseSettings):
 
     google_places_api_key: str | None = None
 
+    openai_api_key: str | None = None
+    openai_email_model: str = "gpt-5.5"
+
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_username: str | None = None
+    smtp_password: str | None = None
+    smtp_from_email: str | None = None
+    smtp_from_name: str = "Denny"
+    smtp_use_tls: bool = True
+    smtp_reply_to: str | None = None
+
     github_token: str | None = None
     github_owner: str = "Ethan0908"
     github_template_repo: str = "business-site-template"
-    generated_repo_prefix: str = "lead-"
 
     vercel_token: str | None = None
     vercel_team_id: str | None = None
-    vercel_project_prefix: str = "lead-"
-
-    google_client_id: str | None = None
-    google_client_secret: str | None = None
-    google_refresh_token: str | None = None
-    gmail_sender_email: str | None = None
 
     public_app_url: str = "http://localhost:3000"
     api_base_url: str = "http://localhost:8000"
