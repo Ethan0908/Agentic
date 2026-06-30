@@ -24,7 +24,7 @@ from app.schemas import (
 )
 from app.services.email_finder import find_public_emails
 from app.services.email_validator import validate_public_email
-from app.services.gmail_drafts import GmailDraftClient, build_pitch_email
+from app.services.outreach_mailer import build_pitch_email, build_pitch_email_with_gpt
 from app.services.places import GooglePlacesClient, PlacesNotConfiguredError, normalise_place
 from app.services.site_generator import generate_local_site
 
@@ -206,7 +206,7 @@ def list_websites(business_id: int, db: Session = Depends(get_db)) -> list[Websi
 
 
 @app.post("/businesses/{business_id}/draft-email", response_model=OutreachEmailOut)
-def draft_email(business_id: int, payload: DraftRequest, db: Session = Depends(get_db)) -> OutreachEmail:
+async def draft_email(business_id: int, payload: DraftRequest, db: Session = Depends(get_db)) -> OutreachEmail:
     business = get_business_or_404(db, business_id)
     recipient = payload.recipient_email or next((contact.email for contact in business.contacts if contact.email), None)
     website_url = str(payload.website_url) if payload.website_url else None
@@ -214,7 +214,11 @@ def draft_email(business_id: int, payload: DraftRequest, db: Session = Depends(g
         latest_site = sorted(business.websites, key=lambda site: site.created_at, reverse=True)[0]
         website_url = latest_site.vercel_url or latest_site.local_path
 
-    subject, body = build_pitch_email(business.name, website_url, business.city)
+    if payload.use_gpt:
+        subject, body = await build_pitch_email_with_gpt(business, website_url)
+    else:
+        subject, body = build_pitch_email(business.name, website_url, business.city)
+
     outreach = OutreachEmail(
         business_id=business.id,
         recipient_email=recipient,
@@ -223,20 +227,9 @@ def draft_email(business_id: int, payload: DraftRequest, db: Session = Depends(g
         status="DRAFT_LOCAL",
     )
 
-    if payload.create_gmail_draft:
-        if not recipient:
-            raise HTTPException(status_code=400, detail="No recipient email available")
-        try:
-            draft = GmailDraftClient().create_draft(recipient, subject, body)
-            outreach.gmail_draft_id = draft.get("id")
-            outreach.gmail_thread_id = draft.get("message", {}).get("threadId")
-            outreach.status = "GMAIL_DRAFT_CREATED"
-        except Exception as exc:
-            raise HTTPException(status_code=502, detail=f"Gmail draft creation failed: {exc}") from exc
-
     business.status = LeadStatus.DRAFT_CREATED
     db.add(outreach)
-    log_event(db, business.id, "email.draft_created", {"recipient": recipient, "gmail": payload.create_gmail_draft})
+    log_event(db, business.id, "email.draft_created", {"recipient": recipient, "use_gpt": payload.use_gpt})
     db.commit()
     db.refresh(outreach)
     return outreach
