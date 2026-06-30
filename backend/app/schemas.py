@@ -80,8 +80,8 @@ class OutreachEmailOut(BaseModel):
     recipient_email: str | None
     subject: str
     body: str
-    provider_message_id: str | None
-    thread_id: str | None
+    gmail_draft_id: str | None
+    gmail_thread_id: str | None
     status: str
     sent_at: datetime | None
     replied_at: datetime | None
