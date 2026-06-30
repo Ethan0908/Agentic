@@ -52,6 +52,7 @@ export default function DashboardPage() {
   const [keyword, setKeyword] = useState("dentist");
   const [location, setLocation] = useState("Vancouver");
   const [manualName, setManualName] = useState("");
+  const [manualCategory, setManualCategory] = useState("");
   const [manualWebsite, setManualWebsite] = useState("");
   const [manualEmail, setManualEmail] = useState("");
   const [message, setMessage] = useState("Ready.");
@@ -146,6 +147,7 @@ export default function DashboardPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: manualName,
+          category: manualCategory || null,
           website_url: manualWebsite || null,
           contact_email: manualEmail || null,
           city: location
@@ -153,6 +155,7 @@ export default function DashboardPage() {
       })
     );
     setManualName("");
+    setManualCategory("");
     setManualWebsite("");
     setManualEmail("");
   }
@@ -171,14 +174,6 @@ export default function DashboardPage() {
       () => fetch(`${apiBase}/businesses/${id}/build-site`, { method: "POST" }),
       true
     );
-  }
-
-  async function publishGitHub(id: number) {
-    await runAction("Publishing to GitHub", () => fetch(`${apiBase}/businesses/${id}/publish-latest-site-github`, { method: "POST" }), true);
-  }
-
-  async function deployVercel(id: number) {
-    await runAction("Deploying to Vercel", () => fetch(`${apiBase}/businesses/${id}/deploy-latest-site-vercel`, { method: "POST" }), true);
   }
 
   async function draftEmail(id: number) {
@@ -201,7 +196,7 @@ export default function DashboardPage() {
         <div>
           <p className="eyebrow">Raspberry Pi controller</p>
           <h1>Agentic Business Website Maker</h1>
-          <p className="subtitle">Find businesses, enrich public contact data, generate with Codex, publish GitHub repos, deploy Vercel sites, draft outreach, and track cleanup.</p>
+          <p className="subtitle">Find businesses, generate category-specific sites with Codex, publish GitHub repos, deploy Vercel sites, draft outreach, and track cleanup.</p>
           <p className="hint">API: {apiBase}</p>
         </div>
         <div className="statusBox">
@@ -218,17 +213,18 @@ export default function DashboardPage() {
             <input value={location} onChange={(event) => setLocation(event.target.value)} placeholder="city" />
             <button onClick={discover} disabled={loading}>Discover</button>
           </div>
-          <p className="hint">Requires GOOGLE_PLACES_API_KEY in .env.</p>
+          <p className="hint">Requires GOOGLE_PLACES_API_KEY in .env. Places results give Codex category context automatically.</p>
         </div>
         <div>
           <h2>Manual lead</h2>
           <div className="formRow">
             <input value={manualName} onChange={(event) => setManualName(event.target.value)} placeholder="business name" />
+            <input value={manualCategory} onChange={(event) => setManualCategory(event.target.value)} placeholder="business type, e.g. sushi restaurant" />
             <input value={manualWebsite} onChange={(event) => setManualWebsite(event.target.value)} placeholder="optional original website URL" />
             <input value={manualEmail} onChange={(event) => setManualEmail(event.target.value)} placeholder="contact email" />
             <button onClick={createManualLead} disabled={loading}>Add</button>
           </div>
-          <p className="hint">The original website URL is optional. Codex generates from the lead data, then the app opens the Vercel link.</p>
+          <p className="hint">For manual leads, add a business type like sushi restaurant, dentist, salon, or plumber so Codex builds the right site.</p>
         </div>
       </section>
 
@@ -280,8 +276,6 @@ export default function DashboardPage() {
                     <button onClick={() => enrich(business.id)} disabled={loading || !business.website_url}>Find email</button>
                     <button onClick={() => validateEmails(business.id)} disabled={loading}>Validate</button>
                     <button onClick={() => buildSite(business.id)} disabled={loading}>Build + deploy</button>
-                    <button onClick={() => publishGitHub(business.id)} disabled={loading}>GitHub only</button>
-                    <button onClick={() => deployVercel(business.id)} disabled={loading}>Vercel only</button>
                     <button onClick={() => draftEmail(business.id)} disabled={loading}>Draft</button>
                     <button onClick={() => sendEmail(business.id)} disabled={loading}>Send</button>
                   </td>
