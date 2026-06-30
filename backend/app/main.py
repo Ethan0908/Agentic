@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,16 +18,17 @@ from app.schemas import (
     ContactOut,
     DiscoverRequest,
     DraftRequest,
-    MessageOut,
     OutreachEmailOut,
     StatusUpdate,
     WebsiteOut,
 )
 from app.services.email_finder import find_public_emails
 from app.services.email_validator import validate_public_email
+from app.services.github_client import GitHubClient
 from app.services.outreach_mailer import SMTPMailer, build_pitch_email, build_pitch_email_with_gpt
 from app.services.places import GooglePlacesClient, PlacesNotConfiguredError, normalise_place
 from app.services.site_generator import generate_local_site
+from app.services.vercel_client import VercelClient
 
 settings = get_settings()
 
@@ -49,6 +51,17 @@ def get_business_or_404(db: Session, business_id: int) -> Business:
     if not business:
         raise HTTPException(status_code=404, detail="Business not found")
     return business
+
+
+def get_latest_website_or_404(db: Session, business_id: int) -> Website:
+    website = db.scalar(
+        select(Website)
+        .where(Website.business_id == business_id)
+        .order_by(Website.created_at.desc())
+    )
+    if not website:
+        raise HTTPException(status_code=400, detail="No generated website found. Build site first.")
+    return website
 
 
 def log_event(db: Session, business_id: int | None, event_type: str, details: dict | None = None) -> None:
@@ -200,6 +213,68 @@ def build_site(business_id: int, db: Session = Depends(get_db)) -> Website:
     business.status = LeadStatus.SITE_BUILT
     db.add(website)
     log_event(db, business.id, "site.generated", generated)
+    db.commit()
+    db.refresh(website)
+    return website
+
+
+@app.post("/businesses/{business_id}/publish-latest-site-github", response_model=WebsiteOut)
+async def publish_latest_site_github(business_id: int, db: Session = Depends(get_db)) -> Website:
+    website = get_latest_website_or_404(db, business_id)
+    if not website.local_path:
+        raise HTTPException(status_code=400, detail="Latest website has no local_path")
+
+    repo_name = website.github_repo_name or Path(website.local_path).name
+    try:
+        github = GitHubClient()
+        repo = await github.create_repo_from_template(repo_name, private=True)
+        upload = await github.upload_directory(repo_name, Path(website.local_path), branch=repo.get("default_branch", "main"))
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"GitHub publish failed: {exc}") from exc
+
+    website.github_repo_name = repo_name
+    website.github_repo_url = repo.get("html_url")
+    website.deployment_status = "GITHUB_PUBLISHED"
+    log_event(db, business_id, "site.github_published", {"repo": repo.get("full_name"), **upload})
+    db.commit()
+    db.refresh(website)
+    return website
+
+
+@app.post("/businesses/{business_id}/deploy-latest-site-vercel", response_model=WebsiteOut)
+async def deploy_latest_site_vercel(business_id: int, db: Session = Depends(get_db)) -> Website:
+    business = get_business_or_404(db, business_id)
+    website = get_latest_website_or_404(db, business_id)
+    if not website.github_repo_name:
+        raise HTTPException(status_code=400, detail="Publish the latest site to GitHub first")
+
+    try:
+        github = GitHubClient()
+        repo = await github.get_repo(website.github_repo_name)
+        vercel = VercelClient()
+        project = await vercel.create_project_for_github_repo(website.github_repo_name, repo.get("id"))
+        deployment = await vercel.create_deployment_from_github(
+            website.github_repo_name,
+            repo.get("id"),
+            ref=repo.get("default_branch", "main"),
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Vercel deployment failed: {exc}") from exc
+
+    deployment_url = deployment.get("url")
+    if deployment_url and not deployment_url.startswith("http"):
+        deployment_url = f"https://{deployment_url}"
+
+    website.vercel_project_id = project.get("id") or project.get("name") or website.github_repo_name
+    website.vercel_url = deployment_url
+    website.deployment_status = "VERCEL_DEPLOYED"
+    business.status = LeadStatus.SITE_DEPLOYED
+    log_event(
+        db,
+        business_id,
+        "site.vercel_deployed",
+        {"project": project.get("name"), "deployment_id": deployment.get("id"), "url": deployment_url},
+    )
     db.commit()
     db.refresh(website)
     return website
