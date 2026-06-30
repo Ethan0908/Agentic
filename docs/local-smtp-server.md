@@ -16,19 +16,16 @@ Do not rely on direct delivery from a home Raspberry Pi unless you control a dom
 
 Use this when you want to test email without sending anything to the Internet.
 
+Start the optional Mailpit service:
+
 ```bash
-docker run -d \
-  --restart unless-stopped \
-  --name mailpit \
-  -p 8025:8025 \
-  -p 1025:1025 \
-  axllent/mailpit
+docker compose --profile mailtest up -d mailpit
 ```
 
-Then set `.env`:
+Then set `.env` for the backend container:
 
 ```env
-SMTP_HOST=host.docker.internal
+SMTP_HOST=mailpit
 SMTP_PORT=1025
 SMTP_USERNAME=
 SMTP_PASSWORD=
@@ -36,6 +33,12 @@ SMTP_FROM_EMAIL=test@local.test
 SMTP_FROM_NAME=Denny
 SMTP_USE_TLS=false
 SMTP_USE_SSL=false
+```
+
+Restart backend:
+
+```bash
+docker compose up --build -d backend
 ```
 
 Open the Mailpit inbox:
