@@ -22,6 +22,7 @@ from app.schemas import (
     StatusUpdate,
     WebsiteOut,
 )
+from app.services.codex_site import improve_site_with_codex
 from app.services.email_finder import find_public_emails
 from app.services.email_validator import validate_public_email
 from app.services.github_client import GitHubClient
@@ -66,6 +67,114 @@ def get_latest_website_or_404(db: Session, business_id: int) -> Website:
 
 def log_event(db: Session, business_id: int | None, event_type: str, details: dict | None = None) -> None:
     db.add(Event(business_id=business_id, event_type=event_type, details=details or {}))
+
+
+async def create_codex_generated_site(db: Session, business: Business) -> Website:
+    generated = generate_local_site(business)
+    site_path = Path(generated["local_path"])
+
+    try:
+        codex_result = await improve_site_with_codex(site_path, business, generated["business_json"])
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Codex site generation failed: {exc}") from exc
+
+    website = Website(
+        business_id=business.id,
+        github_repo_name=generated["slug"],
+        local_path=generated["local_path"],
+        deployment_status="CODEX_GENERATED" if codex_result.get("codex_ran") else "LOCAL_GENERATED",
+    )
+    business.status = LeadStatus.SITE_BUILT
+    db.add(website)
+    log_event(db, business.id, "site.generated", {"generated": generated, "codex": codex_result})
+    db.commit()
+    db.refresh(website)
+    return website
+
+
+async def publish_website_to_github(db: Session, business: Business, website: Website) -> Website:
+    if not website.local_path:
+        raise HTTPException(status_code=400, detail="Website has no local_path")
+
+    repo_name = website.github_repo_name or Path(website.local_path).name
+    source_dir = Path(website.local_path)
+
+    try:
+        github = GitHubClient()
+        repo = await github.create_repo_from_template(repo_name, private=settings.github_generated_repo_private)
+        branch = repo.get("default_branch", "main")
+        upload = await github.upload_directory(repo_name, source_dir, branch=branch)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"GitHub publish failed: {exc}") from exc
+
+    website.github_repo_name = repo_name
+    website.github_repo_url = repo.get("html_url")
+    website.deployment_status = "GITHUB_PUBLISHED"
+    log_event(db, business.id, "site.github_published", {"repo": repo.get("full_name"), **upload})
+
+    # Best-effort central archive folder inside the configured GitHub repo.
+    archive_prefix = f"{settings.github_archive_path.strip('/')}/{repo_name}".strip("/")
+    if settings.github_archive_repo and archive_prefix:
+        try:
+            archive_upload = await github.upload_directory_to_path(
+                settings.github_archive_repo,
+                source_dir,
+                target_prefix=archive_prefix,
+                branch=settings.github_archive_branch,
+            )
+            log_event(
+                db,
+                business.id,
+                "site.github_archived",
+                {"repo": f"{settings.github_owner}/{settings.github_archive_repo}", "path": archive_prefix, **archive_upload},
+            )
+        except Exception as exc:
+            log_event(
+                db,
+                business.id,
+                "site.github_archive_failed",
+                {"repo": settings.github_archive_repo, "path": archive_prefix, "error": str(exc)},
+            )
+
+    db.commit()
+    db.refresh(website)
+    return website
+
+
+async def deploy_website_to_vercel(db: Session, business: Business, website: Website) -> Website:
+    if not website.github_repo_name:
+        raise HTTPException(status_code=400, detail="Publish the latest site to GitHub first")
+
+    try:
+        github = GitHubClient()
+        repo = await github.get_repo(website.github_repo_name)
+        vercel = VercelClient()
+        project = await vercel.create_project_for_github_repo(website.github_repo_name, repo.get("full_name"))
+        deployment = await vercel.create_deployment_from_github(
+            website.github_repo_name,
+            repo.get("id"),
+            ref=repo.get("default_branch", "main"),
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Vercel deployment failed: {exc}") from exc
+
+    deployment_url = deployment.get("url")
+    if deployment_url and not deployment_url.startswith("http"):
+        deployment_url = f"https://{deployment_url}"
+
+    website.vercel_project_id = project.get("id") or project.get("name") or website.github_repo_name
+    website.vercel_url = deployment_url
+    website.deployment_status = "VERCEL_DEPLOYED"
+    business.status = LeadStatus.SITE_DEPLOYED
+    log_event(
+        db,
+        business.id,
+        "site.vercel_deployed",
+        {"project": project.get("name"), "deployment_id": deployment.get("id"), "url": deployment_url},
+    )
+    db.commit()
+    db.refresh(website)
+    return website
 
 
 @app.get("/health")
@@ -201,82 +310,31 @@ def validate_emails(business_id: int, db: Session = Depends(get_db)) -> list[Con
 
 
 @app.post("/businesses/{business_id}/build-site", response_model=WebsiteOut)
-def build_site(business_id: int, db: Session = Depends(get_db)) -> Website:
+async def build_site(business_id: int, db: Session = Depends(get_db)) -> Website:
     business = get_business_or_404(db, business_id)
-    generated = generate_local_site(business)
-    website = Website(
-        business_id=business.id,
-        github_repo_name=generated["slug"],
-        local_path=generated["local_path"],
-        deployment_status="LOCAL_GENERATED",
-    )
-    business.status = LeadStatus.SITE_BUILT
-    db.add(website)
-    log_event(db, business.id, "site.generated", generated)
-    db.commit()
-    db.refresh(website)
-    return website
+    return await create_codex_generated_site(db, business)
 
 
 @app.post("/businesses/{business_id}/publish-latest-site-github", response_model=WebsiteOut)
 async def publish_latest_site_github(business_id: int, db: Session = Depends(get_db)) -> Website:
+    business = get_business_or_404(db, business_id)
     website = get_latest_website_or_404(db, business_id)
-    if not website.local_path:
-        raise HTTPException(status_code=400, detail="Latest website has no local_path")
-
-    repo_name = website.github_repo_name or Path(website.local_path).name
-    try:
-        github = GitHubClient()
-        repo = await github.create_repo_from_template(repo_name, private=True)
-        upload = await github.upload_directory(repo_name, Path(website.local_path), branch=repo.get("default_branch", "main"))
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"GitHub publish failed: {exc}") from exc
-
-    website.github_repo_name = repo_name
-    website.github_repo_url = repo.get("html_url")
-    website.deployment_status = "GITHUB_PUBLISHED"
-    log_event(db, business_id, "site.github_published", {"repo": repo.get("full_name"), **upload})
-    db.commit()
-    db.refresh(website)
-    return website
+    return await publish_website_to_github(db, business, website)
 
 
 @app.post("/businesses/{business_id}/deploy-latest-site-vercel", response_model=WebsiteOut)
 async def deploy_latest_site_vercel(business_id: int, db: Session = Depends(get_db)) -> Website:
     business = get_business_or_404(db, business_id)
     website = get_latest_website_or_404(db, business_id)
-    if not website.github_repo_name:
-        raise HTTPException(status_code=400, detail="Publish the latest site to GitHub first")
+    return await deploy_website_to_vercel(db, business, website)
 
-    try:
-        github = GitHubClient()
-        repo = await github.get_repo(website.github_repo_name)
-        vercel = VercelClient()
-        project = await vercel.create_project_for_github_repo(website.github_repo_name, repo.get("id"))
-        deployment = await vercel.create_deployment_from_github(
-            website.github_repo_name,
-            repo.get("id"),
-            ref=repo.get("default_branch", "main"),
-        )
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Vercel deployment failed: {exc}") from exc
 
-    deployment_url = deployment.get("url")
-    if deployment_url and not deployment_url.startswith("http"):
-        deployment_url = f"https://{deployment_url}"
-
-    website.vercel_project_id = project.get("id") or project.get("name") or website.github_repo_name
-    website.vercel_url = deployment_url
-    website.deployment_status = "VERCEL_DEPLOYED"
-    business.status = LeadStatus.SITE_DEPLOYED
-    log_event(
-        db,
-        business_id,
-        "site.vercel_deployed",
-        {"project": project.get("name"), "deployment_id": deployment.get("id"), "url": deployment_url},
-    )
-    db.commit()
-    db.refresh(website)
+@app.post("/businesses/{business_id}/build-publish-deploy-site", response_model=WebsiteOut)
+async def build_publish_deploy_site(business_id: int, db: Session = Depends(get_db)) -> Website:
+    business = get_business_or_404(db, business_id)
+    website = await create_codex_generated_site(db, business)
+    website = await publish_website_to_github(db, business, website)
+    website = await deploy_website_to_vercel(db, business, website)
     return website
 
 
