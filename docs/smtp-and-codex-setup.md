@@ -1,16 +1,16 @@
 # SMTP and Codex Setup
 
-This replaces the earlier Gmail OAuth plan.
+This replaces the earlier Gmail OAuth and OpenAI API-key plan.
 
 ## Email direction
 
-Use SMTP from the Raspberry Pi instead of Gmail OAuth.
+Use SMTP from the Raspberry Pi for sending. Use Codex/ChatGPT account auth for coding and website generation, not API keys in `.env`.
 
 The safer workflow is:
 
 ```text
 Business lead
-  -> GPT/template generates email copy
+  -> template or reviewed Codex task creates email/site copy
   -> copy is saved in PostgreSQL as a local draft
   -> you review it
   -> a one-at-a-time SMTP action sends the reviewed message
@@ -37,17 +37,21 @@ ALLOW_AUTO_SEND_EMAILS=false
 
 Recommended providers:
 
-- For testing: Gmail SMTP with an app password, if your Google account supports app passwords.
-- For production: a real transactional or outbound SMTP provider such as Postmark, Mailgun, Amazon SES, Resend, or SendGrid.
+- Testing only: Gmail SMTP with an app password, if your Google account supports app passwords.
+- Better production setup: a dedicated domain email plus a real outbound SMTP provider such as Postmark, Amazon SES, Mailgun, Resend, or SendGrid.
+- If you use Google Workspace for your domain, use Google Workspace SMTP relay instead of a personal Gmail inbox.
 
-## Optional GPT email copy
+## No OpenAI API keys
 
-If `OPENAI_API_KEY` is set, the backend can ask the OpenAI API to generate the email copy. If it is empty, the backend uses the deterministic built-in template.
+Do not set `OPENAI_API_KEY`. The repo should not use OpenAI Platform billing for generation.
 
-```env
-OPENAI_API_KEY=
-OPENAI_EMAIL_MODEL=gpt-5.5
+Use this instead:
+
+```text
+ChatGPT account login -> Codex CLI / Codex Cloud -> generated website/code changes
 ```
+
+The app can still create deterministic local email drafts. Later, if you want account-authenticated Codex to improve an individual generated site, run Codex on that generated site folder and review the diff.
 
 ## GitHub and Vercel prefix decision
 
@@ -71,16 +75,12 @@ lead-arbutus-dental-vancouver
 
 There are two different things:
 
-1. Codex as your coding assistant.
-2. The Pi backend that runs your lead/site/email workflow.
+1. Codex as your account-authenticated coding/site agent.
+2. The Pi backend that runs lead tracking, PostgreSQL, GitHub, Vercel, and SMTP.
 
 Codex can sign in with ChatGPT and work on code. That is useful for improving templates, generating site variants, and opening PRs.
 
-The Pi backend should not depend on ChatGPT OAuth as if it were a normal backend API key. For unattended backend automation, prefer one of these:
-
-- Codex CLI logged in on the Pi, used for trusted local coding tasks.
-- OpenAI API key for normal programmatic generation.
-- Manual Codex Cloud tasks through ChatGPT/GitHub for larger code changes.
+The Pi backend should not treat ChatGPT OAuth like a normal backend API key. Instead, install Codex CLI on the Pi, sign in with ChatGPT once, and use reviewed Codex tasks for website/template work.
 
 ## Codex CLI on the Pi
 
@@ -125,7 +125,7 @@ Create a second website template for restaurants and add template selection by b
 ```
 
 ```text
-Wire the generated local site folder into a GitHub repo and Vercel deployment.
+Open this generated site folder and customize copy/layout for the current business. Keep the business facts from business.json. Do not invent claims. Leave a clean diff for review.
 ```
 
 Bad Codex task:
@@ -142,11 +142,11 @@ That would be slow, hard to control, and more likely to break.
 Pi app discovers businesses
 Pi app finds/validates public emails
 Pi app generates structured business.json
-Template creates the website
-Codex improves templates and special cases
+Template creates the first website
+Codex improves templates and selected special-case sites through ChatGPT login
 GitHub stores generated sites
 Vercel hosts generated sites
-Pi app generates reviewed email copy
+Pi app creates reviewed email copy
 Pi sends reviewed messages through SMTP one at a time
 PostgreSQL tracks everything
 ```
