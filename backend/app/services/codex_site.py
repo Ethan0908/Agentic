@@ -56,6 +56,7 @@ def read_codex_output(site_dir: Path, fallback_repo_name: str) -> dict:
         "repo_name": normalise_repo_name(data.get("repo_name"), fallback=fallback_repo_name),
         "metadata_found": True,
         "site_title": data.get("site_title"),
+        "business_type": data.get("business_type"),
         "short_description": data.get("short_description"),
     }
 
@@ -66,10 +67,10 @@ async def improve_site_with_codex(
     business_json: dict,
     fallback_repo_name: str | None = None,
 ) -> dict:
-    """Use the logged-in Codex CLI to improve one generated website folder.
+    """Use the logged-in Codex CLI to generate one business-specific website.
 
     Codex edits only the generated website folder and writes codex-output.json.
-    The GitHub client reads that metadata file before creating the repo.
+    The backend reads that metadata before creating the GitHub repo/Vercel project.
     """
     settings = get_settings()
     fallback_repo_name = normalise_repo_name(fallback_repo_name or business.name)
@@ -96,19 +97,27 @@ Business context:
 {_business_context(business, business_json)}
 
 Task:
-- Create a premium, mobile-first business landing page in this existing Next.js app.
-- Use the supplied business_json and keep every claim truthful.
+- Decide what kind of website this business needs from the business name, category, city, address, phone, email, and any supplied public data.
+- Build the site for that exact business type. Examples:
+  - Sushi restaurant: menu highlights, dine-in/takeout, reservations, catering/party trays, location, hours placeholder, phone CTA.
+  - Dentist: appointments, dental services, emergency/cleaning/cosmetic sections, insurance/location CTAs.
+  - Plumbing company: emergency plumbing, drain cleaning, water heater, service area, phone CTA.
+  - Salon: services, booking, stylists, location, phone/email CTA.
+- Never make a generic plumbing, dental, or contractor website unless the business context actually supports that category.
 - Do not rely on the original business website URL to generate content. Treat it only as an optional outbound reference link if present.
-- Keep the site self-contained, polished, fast, and conversion-focused.
+- Rewrite business.json so headline, subheadline, services, cta, and category match the inferred business type.
+- Keep every claim truthful. Use generic placeholders such as "Call for current hours" instead of inventing exact hours, awards, menu prices, staff names, or reviews.
+- Keep the site self-contained, polished, mobile-first, fast, and conversion-focused.
 - Keep calls, address/directions, email, phone, and original website link visible when available.
 - Do not add new npm packages.
 - Do not use external images that require scraping/downloading.
 - Do not send emails, create GitHub repos, deploy to Vercel, or modify files outside this folder.
-- Choose a clean GitHub/Vercel-safe repository name for this generated site.
+- Choose a clean GitHub/Vercel-safe repository name for this generated site, based on the business name and type/city.
 - Write exactly one JSON metadata file named {CODEX_OUTPUT_FILE} in the project root with this shape:
   {{
     "repo_name": "lowercase-dash-separated-repo-name",
     "site_title": "short public site title",
+    "business_type": "inferred type such as sushi restaurant, dental clinic, salon, plumber",
     "short_description": "one sentence summary"
   }}
 - The repo_name must use only lowercase letters, numbers, dashes, underscores, or dots. No spaces. No owner prefix. No slash.
