@@ -80,8 +80,8 @@ class OutreachEmailOut(BaseModel):
     recipient_email: str | None
     subject: str
     body: str
-    gmail_draft_id: str | None
-    gmail_thread_id: str | None
+    provider_message_id: str | None
+    thread_id: str | None
     status: str
     sent_at: datetime | None
     replied_at: datetime | None
@@ -97,7 +97,7 @@ class StatusUpdate(BaseModel):
 class DraftRequest(BaseModel):
     recipient_email: str | None = None
     website_url: HttpUrl | None = None
-    create_gmail_draft: bool = False
+    use_gpt: bool = True
 
 
 class CleanupRequest(BaseModel):
