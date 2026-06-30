@@ -8,7 +8,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends gcc libpq-dev curl ca-certificates \
+    && apt-get install -y --no-install-recommends gcc libpq-dev curl ca-certificates bubblewrap \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Codex CLI in the backend container so the website pipeline can run
