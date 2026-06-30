@@ -22,9 +22,7 @@ def normalise_repo_name(value: str | None, fallback: str = "generated-business-s
     raw = raw.split("/", 1)[1] if "/" in raw else raw
     raw = re.sub(r"[^a-z0-9._-]+", "-", raw)
     raw = re.sub(r"[-_.]{2,}", "-", raw).strip("-._")
-    if not raw:
-        raw = fallback
-    return raw[:90]
+    return (raw or fallback)[:90]
 
 
 def _business_context(business: Business, business_json: dict) -> str:
@@ -54,23 +52,28 @@ def read_codex_output(site_dir: Path, fallback_repo_name: str) -> dict:
     except Exception:
         return {"repo_name": normalise_repo_name(fallback_repo_name), "metadata_found": False, "metadata_error": "invalid_json"}
 
-    repo_name = normalise_repo_name(data.get("repo_name"), fallback=fallback_repo_name)
     return {
-        "repo_name": repo_name,
+        "repo_name": normalise_repo_name(data.get("repo_name"), fallback=fallback_repo_name),
         "metadata_found": True,
         "site_title": data.get("site_title"),
         "short_description": data.get("short_description"),
     }
 
 
-async def improve_site_with_codex(site_dir: Path, business: Business, business_json: dict, fallback_repo_name: str) -> dict:
+async def improve_site_with_codex(
+    site_dir: Path,
+    business: Business,
+    business_json: dict,
+    fallback_repo_name: str | None = None,
+) -> dict:
     """Use the logged-in Codex CLI to improve one generated website folder.
 
-    This expects the backend container to have the Codex CLI installed and the
-    Pi's ~/.codex mounted into /root/.codex. It intentionally operates only in
-    the generated website folder.
+    Codex edits only the generated website folder and writes codex-output.json.
+    The GitHub client reads that metadata file before creating the repo.
     """
     settings = get_settings()
+    fallback_repo_name = normalise_repo_name(fallback_repo_name or business.name)
+
     if not settings.codex_enabled:
         metadata = read_codex_output(site_dir, fallback_repo_name)
         return {"codex_ran": False, "reason": "CODEX_ENABLED=false", **metadata}
