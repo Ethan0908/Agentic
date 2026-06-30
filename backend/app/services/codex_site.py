@@ -71,7 +71,13 @@ Task:
 - Finish by leaving the edited files on disk.
 """.strip()
 
-    command = [codex, "exec", "--sandbox", "workspace-write"]
+    command = [
+        codex,
+        "exec",
+        "--sandbox",
+        "workspace-write",
+        "--skip-git-repo-check",
+    ]
     if settings.codex_default_model:
         command.extend(["--model", settings.codex_default_model])
     command.append(prompt)
