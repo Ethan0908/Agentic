@@ -1,8 +1,10 @@
 # Raspberry Pi and Keys Setup
 
-This guide sets up the Raspberry Pi 5, local PostgreSQL app, Google Places key, Gmail OAuth, GitHub token, Vercel token, and Codex OAuth/GitHub connection.
+This guide sets up the Raspberry Pi 5, local PostgreSQL app, Google Places key, SMTP email sending, GitHub token, Vercel token, and Codex/ChatGPT setup.
 
-Never commit `.env`, OAuth token JSON files, API keys, or GitHub/Vercel tokens.
+Important update: Gmail OAuth has been replaced by SMTP. For the current email and Codex plan, read `docs/smtp-and-codex-setup.md` first.
+
+Never commit `.env`, OAuth token files, API keys, GitHub tokens, Vercel tokens, SMTP passwords, or Codex auth files.
 
 ## 1. Prepare the Raspberry Pi
 
@@ -108,7 +110,7 @@ Test in dashboard with keyword + city.
 
 ## 5. GitHub token
 
-For generated lead repos, create a fine-grained GitHub personal access token.
+For generated business repos, create a fine-grained GitHub personal access token.
 
 Recommended permissions:
 
@@ -125,7 +127,6 @@ Add to `.env`:
 GITHUB_TOKEN=github_pat_or_classic_token_here
 GITHUB_OWNER=Ethan0908
 GITHUB_TEMPLATE_REPO=business-site-template
-GENERATED_REPO_PREFIX=lead-
 ```
 
 Important: if you enable actual repository deletion later, keep `ALLOW_AUTO_DELETE_DEPLOYMENTS=false` until the dashboard has a manual approve button.
@@ -138,7 +139,6 @@ Add to `.env`:
 
 ```env
 VERCEL_TOKEN=your_vercel_token_here
-VERCEL_PROJECT_PREFIX=lead-
 ```
 
 If deploying under a team, also add:
@@ -147,67 +147,46 @@ If deploying under a team, also add:
 VERCEL_TEAM_ID=team_xxxxxxxxx
 ```
 
-## 7. Gmail OAuth for drafts
+## 7. SMTP email sending
 
-Use OAuth, not a Gmail password.
-
-In Google Cloud:
-
-1. Enable Gmail API.
-2. Configure OAuth consent screen.
-3. Create an OAuth Client ID.
-4. For easiest testing, choose Desktop app.
-5. Download `credentials.json` locally.
-
-You need the `gmail.compose` scope for creating drafts:
-
-```text
-https://www.googleapis.com/auth/gmail.compose
-```
-
-Generate a refresh token with a small local script on your laptop first, then copy the values into `.env` on the Pi.
+Use SMTP instead of Gmail OAuth.
 
 Add to `.env`:
 
 ```env
-GOOGLE_CLIENT_ID=your_client_id
-GOOGLE_CLIENT_SECRET=your_client_secret
-GOOGLE_REFRESH_TOKEN=your_refresh_token
-GMAIL_SENDER_EMAIL=your_email@gmail.com
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_USERNAME=your_username
+SMTP_PASSWORD=your_password_or_app_password
+SMTP_FROM_EMAIL=you@example.com
+SMTP_FROM_NAME=Denny
+SMTP_USE_TLS=true
+SMTP_REPLY_TO=
 ```
 
-Keep Gmail draft mode manual at first:
+Keep sending review-based:
 
 ```env
 ALLOW_AUTO_SEND_EMAILS=false
 ```
 
-## 8. Codex OAuth / GitHub connection
+## 8. Codex / ChatGPT setup
 
-Codex does not replace your backend. Use it to improve the repo and create PRs.
+Codex can sign in with ChatGPT and work on the repo, but the Pi app should not treat ChatGPT OAuth like a generic backend API key.
 
-Setup:
+Install Codex CLI on the Pi:
 
-1. Go to Codex in ChatGPT.
-2. Connect your GitHub account.
-3. Grant access to `Ethan0908/Agentic` and the generated template repo.
-4. Use Codex to work on branches and PRs, not directly on production secrets.
-
-Recommended Codex tasks:
-
-```text
-Wire the generated local site folder into GitHub repo creation from template.
+```bash
+curl -fsSL https://chatgpt.com/codex/install.sh | sh
 ```
 
-```text
-Add Vercel deployment creation and store vercel_project_id and vercel_url in PostgreSQL.
+On a headless Pi, use device login if needed:
+
+```bash
+codex login --device-auth
 ```
 
-```text
-Add Gmail reply tracking by thread ID and update outreach status.
-```
-
-Do not give Codex `.env` secrets. Keep secrets on the Pi only.
+Treat `~/.codex/auth.json` like a password.
 
 ## 9. Run the app on the Pi
 
@@ -254,10 +233,11 @@ Add cron later after the app is stable.
 2. Run email enrichment on that one business.
 3. Validate that email.
 4. Build local site.
-5. Create local draft record.
-6. Only after this works, enable Gmail draft creation.
-7. Only after this works, wire GitHub repo creation.
-8. Only after this works, wire Vercel deployment.
-9. Only after this works, add delete approval.
+5. Create local email copy.
+6. Review the copy.
+7. Test SMTP with your own address first.
+8. Wire GitHub repo creation.
+9. Wire Vercel deployment.
+10. Add manual delete approval.
 
 Do not enable auto-send or auto-delete until the approval workflow is fully tested.
