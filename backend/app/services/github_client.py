@@ -23,16 +23,34 @@ class GitHubClient:
             "X-GitHub-Api-Version": "2022-11-28",
         }
 
-    def _repo_url(self, repo_name: str) -> str:
-        return f"https://api.github.com/repos/{self.settings.github_owner}/{repo_name}"
+    def _split_repo(self, repo_name_or_full_name: str) -> tuple[str, str]:
+        if "/" in repo_name_or_full_name:
+            owner, repo = repo_name_or_full_name.split("/", 1)
+            return owner, repo
+        return self.settings.github_owner, repo_name_or_full_name
 
-    async def get_repo(self, repo_name: str) -> dict:
+    def _repo_url(self, repo_name_or_full_name: str) -> str:
+        owner, repo = self._split_repo(repo_name_or_full_name)
+        return f"https://api.github.com/repos/{owner}/{repo}"
+
+    async def get_repo(self, repo_name_or_full_name: str) -> dict:
         async with httpx.AsyncClient(timeout=30) as client:
-            response = await client.get(self._repo_url(repo_name), headers=self.headers)
+            response = await client.get(self._repo_url(repo_name_or_full_name), headers=self.headers)
             response.raise_for_status()
             return response.json()
 
     async def create_repo(self, repo_name: str, private: bool = True) -> dict:
+        """Create or reuse a generated repo.
+
+        GitHub's /user/repos endpoint creates the repo under the authenticated
+        account. We store the returned full_name later, so later steps do not
+        have to guess the owner again.
+        """
+        try:
+            return await self.get_repo(repo_name)
+        except Exception:
+            pass
+
         payload = {
             "name": repo_name,
             "private": private,
@@ -42,6 +60,8 @@ class GitHubClient:
         async with httpx.AsyncClient(timeout=30) as client:
             response = await client.post("https://api.github.com/user/repos", headers=self.headers, json=payload)
             if response.status_code == 422:
+                # Repo probably exists. Try the configured owner one more time,
+                # then return the precise API error if that lookup still fails.
                 return await self.get_repo(repo_name)
             response.raise_for_status()
             return response.json()
@@ -63,16 +83,15 @@ class GitHubClient:
         async with httpx.AsyncClient(timeout=30) as client:
             response = await client.post(url, headers=self.headers, json=payload)
             if response.status_code == 422:
-                # Repo probably already exists. Reuse it so repeated clicks are safe.
                 return await self.get_repo(repo_name)
             response.raise_for_status()
             return response.json()
 
-    async def _get_branch_ref(self, repo_name: str, branch: str = "main") -> dict:
-        url = f"{self._repo_url(repo_name)}/git/ref/heads/{branch}"
+    async def _get_branch_ref(self, repo_name_or_full_name: str, branch: str = "main") -> dict:
+        url = f"{self._repo_url(repo_name_or_full_name)}/git/ref/heads/{branch}"
         last_error: Exception | None = None
         async with httpx.AsyncClient(timeout=30) as client:
-            for _ in range(10):
+            for _ in range(15):
                 try:
                     response = await client.get(url, headers=self.headers)
                     response.raise_for_status()
@@ -80,7 +99,7 @@ class GitHubClient:
                 except Exception as exc:
                     last_error = exc
                     await asyncio.sleep(1)
-        raise RuntimeError(f"Could not read GitHub branch ref for {repo_name}: {last_error}")
+        raise RuntimeError(f"Could not read GitHub branch ref for {repo_name_or_full_name}: {last_error}")
 
     def _directory_entries(self, source_dir: Path, target_prefix: str | None = None) -> list[dict]:
         if not source_dir.exists() or not source_dir.is_dir():
@@ -116,20 +135,20 @@ class GitHubClient:
             raise RuntimeError(f"No uploadable files found in {source_dir}")
         return entries
 
-    async def _commit_entries(self, repo_name: str, entries: list[dict], branch: str, message: str) -> dict:
+    async def _commit_entries(self, repo_name_or_full_name: str, entries: list[dict], branch: str, message: str) -> dict:
         async with httpx.AsyncClient(timeout=90) as client:
-            ref = await self._get_branch_ref(repo_name, branch)
+            ref = await self._get_branch_ref(repo_name_or_full_name, branch)
             current_commit_sha = ref["object"]["sha"]
 
             commit_response = await client.get(
-                f"{self._repo_url(repo_name)}/git/commits/{current_commit_sha}",
+                f"{self._repo_url(repo_name_or_full_name)}/git/commits/{current_commit_sha}",
                 headers=self.headers,
             )
             commit_response.raise_for_status()
             base_tree_sha = commit_response.json()["tree"]["sha"]
 
             tree_response = await client.post(
-                f"{self._repo_url(repo_name)}/git/trees",
+                f"{self._repo_url(repo_name_or_full_name)}/git/trees",
                 headers=self.headers,
                 json={"base_tree": base_tree_sha, "tree": entries},
             )
@@ -137,7 +156,7 @@ class GitHubClient:
             new_tree_sha = tree_response.json()["sha"]
 
             new_commit_response = await client.post(
-                f"{self._repo_url(repo_name)}/git/commits",
+                f"{self._repo_url(repo_name_or_full_name)}/git/commits",
                 headers=self.headers,
                 json={
                     "message": message,
@@ -149,7 +168,7 @@ class GitHubClient:
             new_commit = new_commit_response.json()
 
             update_ref_response = await client.patch(
-                f"{self._repo_url(repo_name)}/git/refs/heads/{branch}",
+                f"{self._repo_url(repo_name_or_full_name)}/git/refs/heads/{branch}",
                 headers=self.headers,
                 json={"sha": new_commit["sha"], "force": False},
             )
@@ -157,15 +176,15 @@ class GitHubClient:
 
         return {"commit_sha": new_commit["sha"], "files_uploaded": len(entries), "branch": branch}
 
-    async def upload_directory(self, repo_name: str, source_dir: Path, branch: str = "main") -> dict:
+    async def upload_directory(self, repo_name_or_full_name: str, source_dir: Path, branch: str = "main") -> dict:
         entries = self._directory_entries(source_dir)
-        return await self._commit_entries(repo_name, entries, branch, "Publish generated business website")
+        return await self._commit_entries(repo_name_or_full_name, entries, branch, "Publish generated business website")
 
-    async def upload_directory_to_path(self, repo_name: str, source_dir: Path, target_prefix: str, branch: str = "main") -> dict:
+    async def upload_directory_to_path(self, repo_name_or_full_name: str, source_dir: Path, target_prefix: str, branch: str = "main") -> dict:
         entries = self._directory_entries(source_dir, target_prefix=target_prefix)
-        return await self._commit_entries(repo_name, entries, branch, f"Archive generated website at {target_prefix}")
+        return await self._commit_entries(repo_name_or_full_name, entries, branch, f"Archive generated website at {target_prefix}")
 
-    async def delete_repo(self, repo_name: str) -> None:
+    async def delete_repo(self, repo_name_or_full_name: str) -> None:
         async with httpx.AsyncClient(timeout=30) as client:
-            response = await client.delete(self._repo_url(repo_name), headers=self.headers)
+            response = await client.delete(self._repo_url(repo_name_or_full_name), headers=self.headers)
             response.raise_for_status()
