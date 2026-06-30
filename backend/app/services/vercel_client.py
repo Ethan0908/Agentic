@@ -30,10 +30,12 @@ class VercelClient:
             response.raise_for_status()
             return response.json()
 
-    async def create_project_for_github_repo(self, project_name: str, github_repo_id: int | str | None = None) -> dict:
-        payload: dict = {"name": project_name, "framework": "nextjs"}
-        if github_repo_id:
-            payload["gitRepository"] = {"type": "github", "repoId": str(github_repo_id)}
+    async def create_project_for_github_repo(self, project_name: str, github_repo_full_name: str) -> dict:
+        payload: dict = {
+            "name": project_name,
+            "framework": "nextjs",
+            "gitRepository": {"type": "github", "repo": github_repo_full_name},
+        }
 
         async with httpx.AsyncClient(timeout=30) as client:
             response = await client.post(
