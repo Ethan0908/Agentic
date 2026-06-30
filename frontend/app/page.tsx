@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type Business = {
   id: number;
@@ -18,22 +18,33 @@ type Stats = {
   by_status: Record<string, number>;
 };
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
+function resolveApiBase() {
+  const configured = process.env.NEXT_PUBLIC_API_BASE_URL;
+  if (configured && !configured.includes("localhost")) {
+    return configured;
+  }
+  if (typeof window !== "undefined") {
+    return `${window.location.protocol}//${window.location.hostname}:8000`;
+  }
+  return configured || "http://localhost:8000";
+}
 
 export default function DashboardPage() {
+  const apiBase = useMemo(() => resolveApiBase(), []);
   const [businesses, setBusinesses] = useState<Business[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [keyword, setKeyword] = useState("dentist");
   const [location, setLocation] = useState("Vancouver");
   const [manualName, setManualName] = useState("");
   const [manualWebsite, setManualWebsite] = useState("");
+  const [manualEmail, setManualEmail] = useState("");
   const [message, setMessage] = useState("Ready.");
   const [loading, setLoading] = useState(false);
 
   async function refresh() {
     const [businessResponse, statsResponse] = await Promise.all([
-      fetch(`${API_BASE}/businesses`, { cache: "no-store" }),
-      fetch(`${API_BASE}/stats`, { cache: "no-store" })
+      fetch(`${apiBase}/businesses`, { cache: "no-store" }),
+      fetch(`${apiBase}/stats`, { cache: "no-store" })
     ]);
     if (businessResponse.ok) {
       setBusinesses(await businessResponse.json());
@@ -44,8 +55,8 @@ export default function DashboardPage() {
   }
 
   useEffect(() => {
-    refresh().catch(() => setMessage("Could not reach backend. Check Docker and migrations."));
-  }, []);
+    refresh().catch(() => setMessage(`Could not reach backend at ${apiBase}. Check API_BASE_URL, Docker, and migrations.`));
+  }, [apiBase]);
 
   async function runAction(label: string, action: () => Promise<Response>) {
     setLoading(true);
@@ -67,7 +78,7 @@ export default function DashboardPage() {
 
   async function discover() {
     await runAction("Discovering businesses", () =>
-      fetch(`${API_BASE}/discover`, {
+      fetch(`${apiBase}/discover`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ keyword, location, max_results: 10, radius_m: 5000 })
@@ -81,34 +92,40 @@ export default function DashboardPage() {
       return;
     }
     await runAction("Creating manual lead", () =>
-      fetch(`${API_BASE}/businesses`, {
+      fetch(`${apiBase}/businesses`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: manualName, website_url: manualWebsite || null, city: location })
+        body: JSON.stringify({
+          name: manualName,
+          website_url: manualWebsite || null,
+          contact_email: manualEmail || null,
+          city: location
+        })
       })
     );
     setManualName("");
     setManualWebsite("");
+    setManualEmail("");
   }
 
   async function enrich(id: number) {
-    await runAction("Finding emails", () => fetch(`${API_BASE}/businesses/${id}/enrich-email`, { method: "POST" }));
+    await runAction("Finding emails", () => fetch(`${apiBase}/businesses/${id}/enrich-email`, { method: "POST" }));
   }
 
   async function validateEmails(id: number) {
-    await runAction("Validating emails", () => fetch(`${API_BASE}/businesses/${id}/validate-emails`, { method: "POST" }));
+    await runAction("Validating emails", () => fetch(`${apiBase}/businesses/${id}/validate-emails`, { method: "POST" }));
   }
 
   async function buildSite(id: number) {
-    await runAction("Generating site", () => fetch(`${API_BASE}/businesses/${id}/build-site`, { method: "POST" }));
+    await runAction("Generating site", () => fetch(`${apiBase}/businesses/${id}/build-site`, { method: "POST" }));
   }
 
   async function draftEmail(id: number) {
     await runAction("Creating local email draft", () =>
-      fetch(`${API_BASE}/businesses/${id}/draft-email`, {
+      fetch(`${apiBase}/businesses/${id}/draft-email`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ create_gmail_draft: false })
+        body: JSON.stringify({ use_gpt: false })
       })
     );
   }
@@ -120,6 +137,7 @@ export default function DashboardPage() {
           <p className="eyebrow">Raspberry Pi controller</p>
           <h1>Agentic Business Website Maker</h1>
           <p className="subtitle">Find businesses, enrich public contact data, generate website previews, draft outreach, and track cleanup.</p>
+          <p className="hint">API: {apiBase}</p>
         </div>
         <div className="statusBox">
           <strong>{stats?.total ?? 0}</strong>
@@ -142,8 +160,10 @@ export default function DashboardPage() {
           <div className="formRow">
             <input value={manualName} onChange={(event) => setManualName(event.target.value)} placeholder="business name" />
             <input value={manualWebsite} onChange={(event) => setManualWebsite(event.target.value)} placeholder="website URL" />
+            <input value={manualEmail} onChange={(event) => setManualEmail(event.target.value)} placeholder="contact email" />
             <button onClick={createManualLead} disabled={loading}>Add</button>
           </div>
+          <p className="hint">For SMTP testing, use your own email as the contact first.</p>
         </div>
       </section>
 
