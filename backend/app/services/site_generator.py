@@ -16,7 +16,8 @@ OUTPUT_DIR = Path("/app/.generated-sites")
 def repo_slug_for_business(business: Business) -> str:
     city = slugify(business.city or "local")
     name = slugify(business.name)
-    return f"lead-{name}-{city}"[:90].strip("-")
+    slug = f"{name}-{city}"[:90].strip("-")
+    return slug or f"business-{business.id}"
 
 
 def build_business_payload(business: Business, website_url: str | None = None) -> dict:
