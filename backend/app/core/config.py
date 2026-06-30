@@ -12,8 +12,9 @@ class Settings(BaseSettings):
 
     google_places_api_key: str | None = None
 
-    openai_api_key: str | None = None
-    openai_email_model: str = "gpt-5.5"
+    codex_enabled: bool = True
+    codex_workdir: str = "/app/.generated-sites"
+    codex_default_model: str | None = None
 
     smtp_host: str | None = None
     smtp_port: int = 587
