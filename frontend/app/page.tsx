@@ -67,7 +67,9 @@ export default function DashboardPage() {
         const error = await response.json().catch(() => ({ detail: response.statusText }));
         throw new Error(error.detail || response.statusText);
       }
-      setMessage(`${label} complete.`);
+      const data = await response.json().catch(() => null);
+      const url = data?.vercel_url || data?.github_repo_url;
+      setMessage(url ? `${label} complete: ${url}` : `${label} complete.`);
       await refresh();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Action failed");
@@ -120,6 +122,14 @@ export default function DashboardPage() {
     await runAction("Generating site", () => fetch(`${apiBase}/businesses/${id}/build-site`, { method: "POST" }));
   }
 
+  async function publishGitHub(id: number) {
+    await runAction("Publishing to GitHub", () => fetch(`${apiBase}/businesses/${id}/publish-latest-site-github`, { method: "POST" }));
+  }
+
+  async function deployVercel(id: number) {
+    await runAction("Deploying to Vercel", () => fetch(`${apiBase}/businesses/${id}/deploy-latest-site-vercel`, { method: "POST" }));
+  }
+
   async function draftEmail(id: number) {
     await runAction("Creating local email draft", () =>
       fetch(`${apiBase}/businesses/${id}/draft-email`, {
@@ -130,13 +140,17 @@ export default function DashboardPage() {
     );
   }
 
+  async function sendEmail(id: number) {
+    await runAction("Sending latest email", () => fetch(`${apiBase}/businesses/${id}/send-latest-email`, { method: "POST" }));
+  }
+
   return (
     <main className="page">
       <section className="hero">
         <div>
           <p className="eyebrow">Raspberry Pi controller</p>
           <h1>Agentic Business Website Maker</h1>
-          <p className="subtitle">Find businesses, enrich public contact data, generate website previews, draft outreach, and track cleanup.</p>
+          <p className="subtitle">Find businesses, enrich public contact data, generate website previews, publish to GitHub/Vercel, draft outreach, and track cleanup.</p>
           <p className="hint">API: {apiBase}</p>
         </div>
         <div className="statusBox">
@@ -210,7 +224,10 @@ export default function DashboardPage() {
                     <button onClick={() => enrich(business.id)} disabled={loading || !business.website_url}>Find email</button>
                     <button onClick={() => validateEmails(business.id)} disabled={loading}>Validate</button>
                     <button onClick={() => buildSite(business.id)} disabled={loading}>Build site</button>
+                    <button onClick={() => publishGitHub(business.id)} disabled={loading}>GitHub</button>
+                    <button onClick={() => deployVercel(business.id)} disabled={loading}>Vercel</button>
                     <button onClick={() => draftEmail(business.id)} disabled={loading}>Draft</button>
+                    <button onClick={() => sendEmail(business.id)} disabled={loading}>Send</button>
                   </td>
                 </tr>
               ))}
