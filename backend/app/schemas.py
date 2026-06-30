@@ -36,6 +36,10 @@ class BusinessOut(BaseModel):
     source: str
     status: LeadStatus
     notes: str | None
+    latest_github_repo_name: str | None = None
+    latest_github_repo_url: str | None = None
+    latest_vercel_url: str | None = None
+    latest_deployment_status: str | None = None
     created_at: datetime
     updated_at: datetime
 
