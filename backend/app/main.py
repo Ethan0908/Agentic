@@ -24,7 +24,7 @@ from app.schemas import (
 )
 from app.services.email_finder import find_public_emails
 from app.services.email_validator import validate_public_email
-from app.services.outreach_mailer import build_pitch_email, build_pitch_email_with_gpt
+from app.services.outreach_mailer import SMTPMailer, build_pitch_email, build_pitch_email_with_gpt
 from app.services.places import GooglePlacesClient, PlacesNotConfiguredError, normalise_place
 from app.services.site_generator import generate_local_site
 
@@ -70,9 +70,21 @@ def list_businesses(status: LeadStatus | None = None, db: Session = Depends(get_
 
 @app.post("/businesses", response_model=BusinessOut)
 def create_business(payload: BusinessCreate, db: Session = Depends(get_db)) -> Business:
-    business = Business(**payload.model_dump(), source="manual", status=LeadStatus.DISCOVERED)
+    data = payload.model_dump()
+    contact_email = data.pop("contact_email", None)
+    business = Business(**data, source="manual", status=LeadStatus.EMAIL_FOUND if contact_email else LeadStatus.DISCOVERED)
     db.add(business)
     db.flush()
+    if contact_email:
+        db.add(
+            Contact(
+                business_id=business.id,
+                email=contact_email.strip(),
+                phone=business.phone,
+                source_url="manual",
+                confidence=100,
+            )
+        )
     log_event(db, business.id, "business.created", payload.model_dump())
     db.commit()
     db.refresh(business)
@@ -205,6 +217,12 @@ def list_websites(business_id: int, db: Session = Depends(get_db)) -> list[Websi
     return list(db.scalars(select(Website).where(Website.business_id == business_id).order_by(Website.created_at.desc())).all())
 
 
+@app.get("/businesses/{business_id}/outreach-emails", response_model=list[OutreachEmailOut])
+def list_outreach_emails(business_id: int, db: Session = Depends(get_db)) -> list[OutreachEmail]:
+    get_business_or_404(db, business_id)
+    return list(db.scalars(select(OutreachEmail).where(OutreachEmail.business_id == business_id).order_by(OutreachEmail.created_at.desc())).all())
+
+
 @app.post("/businesses/{business_id}/draft-email", response_model=OutreachEmailOut)
 async def draft_email(business_id: int, payload: DraftRequest, db: Session = Depends(get_db)) -> OutreachEmail:
     business = get_business_or_404(db, business_id)
@@ -230,6 +248,33 @@ async def draft_email(business_id: int, payload: DraftRequest, db: Session = Dep
     business.status = LeadStatus.DRAFT_CREATED
     db.add(outreach)
     log_event(db, business.id, "email.draft_created", {"recipient": recipient, "use_gpt": payload.use_gpt})
+    db.commit()
+    db.refresh(outreach)
+    return outreach
+
+
+@app.post("/businesses/{business_id}/send-latest-email", response_model=OutreachEmailOut)
+def send_latest_email(business_id: int, db: Session = Depends(get_db)) -> OutreachEmail:
+    business = get_business_or_404(db, business_id)
+    outreach = db.scalar(
+        select(OutreachEmail)
+        .where(OutreachEmail.business_id == business.id, OutreachEmail.status != "SENT")
+        .order_by(OutreachEmail.created_at.desc())
+    )
+    if not outreach:
+        raise HTTPException(status_code=400, detail="No unsent local draft found. Create a draft first.")
+    if not outreach.recipient_email:
+        raise HTTPException(status_code=400, detail="Draft has no recipient email. Add a contact email first.")
+
+    try:
+        send_result = SMTPMailer().send(outreach.recipient_email, outreach.subject, outreach.body)
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"SMTP send failed: {exc}") from exc
+
+    outreach.status = "SENT"
+    outreach.sent_at = datetime.now(UTC)
+    business.status = LeadStatus.SENT
+    log_event(db, business.id, "email.sent", {"outreach_email_id": outreach.id, "smtp_result": send_result})
     db.commit()
     db.refresh(outreach)
     return outreach
