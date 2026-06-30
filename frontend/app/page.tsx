@@ -119,7 +119,9 @@ export default function DashboardPage() {
   }
 
   async function buildSite(id: number) {
-    await runAction("Generating site", () => fetch(`${apiBase}/businesses/${id}/build-site`, { method: "POST" }));
+    await runAction("Building site with Codex, GitHub, and Vercel", () =>
+      fetch(`${apiBase}/businesses/${id}/build-publish-deploy-site`, { method: "POST" })
+    );
   }
 
   async function publishGitHub(id: number) {
@@ -150,7 +152,7 @@ export default function DashboardPage() {
         <div>
           <p className="eyebrow">Raspberry Pi controller</p>
           <h1>Agentic Business Website Maker</h1>
-          <p className="subtitle">Find businesses, enrich public contact data, generate website previews, publish to GitHub/Vercel, draft outreach, and track cleanup.</p>
+          <p className="subtitle">Find businesses, enrich public contact data, generate website previews with Codex, publish to GitHub/Vercel, draft outreach, and track cleanup.</p>
           <p className="hint">API: {apiBase}</p>
         </div>
         <div className="statusBox">
@@ -223,9 +225,9 @@ export default function DashboardPage() {
                   <td className="actions">
                     <button onClick={() => enrich(business.id)} disabled={loading || !business.website_url}>Find email</button>
                     <button onClick={() => validateEmails(business.id)} disabled={loading}>Validate</button>
-                    <button onClick={() => buildSite(business.id)} disabled={loading}>Build site</button>
-                    <button onClick={() => publishGitHub(business.id)} disabled={loading}>GitHub</button>
-                    <button onClick={() => deployVercel(business.id)} disabled={loading}>Vercel</button>
+                    <button onClick={() => buildSite(business.id)} disabled={loading}>Build + deploy</button>
+                    <button onClick={() => publishGitHub(business.id)} disabled={loading}>GitHub only</button>
+                    <button onClick={() => deployVercel(business.id)} disabled={loading}>Vercel only</button>
                     <button onClick={() => draftEmail(business.id)} disabled={loading}>Draft</button>
                     <button onClick={() => sendEmail(business.id)} disabled={loading}>Send</button>
                   </td>
