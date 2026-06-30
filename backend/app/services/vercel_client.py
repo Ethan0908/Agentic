@@ -21,14 +21,45 @@ class VercelClient:
             return f"{url}{separator}teamId={self.settings.vercel_team_id}"
         return url
 
-    async def create_project_for_github_repo(self, project_name: str, github_repo_id: int | None = None) -> dict:
+    async def get_project(self, project_id_or_name: str) -> dict:
+        async with httpx.AsyncClient(timeout=30) as client:
+            response = await client.get(
+                self._with_team(f"https://api.vercel.com/v9/projects/{project_id_or_name}"),
+                headers=self.headers,
+            )
+            response.raise_for_status()
+            return response.json()
+
+    async def create_project_for_github_repo(self, project_name: str, github_repo_id: int | str | None = None) -> dict:
         payload: dict = {"name": project_name, "framework": "nextjs"}
         if github_repo_id:
-            payload["gitRepository"] = {"type": "github", "repoId": github_repo_id}
+            payload["gitRepository"] = {"type": "github", "repoId": str(github_repo_id)}
 
         async with httpx.AsyncClient(timeout=30) as client:
             response = await client.post(
                 self._with_team("https://api.vercel.com/v11/projects"),
+                headers=self.headers,
+                json=payload,
+            )
+            if response.status_code == 409:
+                return await self.get_project(project_name)
+            response.raise_for_status()
+            return response.json()
+
+    async def create_deployment_from_github(self, project_name: str, github_repo_id: int | str, ref: str = "main") -> dict:
+        payload = {
+            "name": project_name,
+            "project": project_name,
+            "target": "production",
+            "gitSource": {
+                "type": "github",
+                "repoId": str(github_repo_id),
+                "ref": ref,
+            },
+        }
+        async with httpx.AsyncClient(timeout=60) as client:
+            response = await client.post(
+                self._with_team("https://api.vercel.com/v13/deployments"),
                 headers=self.headers,
                 json=payload,
             )
