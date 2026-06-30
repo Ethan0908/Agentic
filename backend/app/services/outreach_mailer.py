@@ -33,10 +33,9 @@ def build_pitch_email(business_name: str, website_url: str | None, city: str | N
 async def build_pitch_email_with_gpt(business: Business, website_url: str | None = None) -> tuple[str, str]:
     """Compatibility wrapper.
 
-    The project intentionally avoids OpenAI API keys. Account-authenticated Codex
-    work should happen through the Codex CLI/session on the Pi for website and
-    template generation. Email copy stays deterministic unless a reviewed Codex
-    workflow writes copy into the database later.
+    Account-authenticated Codex work should happen through the Codex CLI/session
+    on the Pi for website/template generation. Email copy stays deterministic
+    unless a reviewed Codex workflow writes copy into the database later.
     """
     return build_pitch_email(business.name, website_url, business.city)
 
@@ -44,15 +43,9 @@ async def build_pitch_email_with_gpt(business: Business, website_url: str | None
 class SMTPMailer:
     def __init__(self) -> None:
         self.settings = get_settings()
-        required = [
-            self.settings.smtp_host,
-            self.settings.smtp_port,
-            self.settings.smtp_username,
-            self.settings.smtp_password,
-            self.settings.smtp_from_email,
-        ]
+        required = [self.settings.smtp_host, self.settings.smtp_port, self.settings.smtp_from_email]
         if not all(required):
-            raise SMTPNotConfiguredError("SMTP settings are not fully configured")
+            raise SMTPNotConfiguredError("SMTP_HOST, SMTP_PORT, and SMTP_FROM_EMAIL are required")
 
     def send(self, to: str, subject: str, body: str) -> str | None:
         message = EmailMessage()
@@ -63,15 +56,17 @@ class SMTPMailer:
             message["Reply-To"] = self.settings.smtp_reply_to
         message.set_content(body)
 
-        if self.settings.smtp_use_tls:
-            with smtplib.SMTP(self.settings.smtp_host, self.settings.smtp_port, timeout=30) as server:
-                server.starttls()
-                server.login(self.settings.smtp_username or "", self.settings.smtp_password or "")
-                response = server.send_message(message)
+        if self.settings.smtp_use_ssl:
+            server_context = smtplib.SMTP_SSL(self.settings.smtp_host, self.settings.smtp_port, timeout=30)
         else:
-            with smtplib.SMTP_SSL(self.settings.smtp_host, self.settings.smtp_port, timeout=30) as server:
-                server.login(self.settings.smtp_username or "", self.settings.smtp_password or "")
-                response = server.send_message(message)
+            server_context = smtplib.SMTP(self.settings.smtp_host, self.settings.smtp_port, timeout=30)
+
+        with server_context as server:
+            if self.settings.smtp_use_tls:
+                server.starttls()
+            if self.settings.smtp_username and self.settings.smtp_password:
+                server.login(self.settings.smtp_username, self.settings.smtp_password)
+            response = server.send_message(message)
 
         # smtplib returns an empty dict on full success.
         return None if response == {} else json.dumps(response)
