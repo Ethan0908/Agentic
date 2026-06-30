@@ -12,6 +12,7 @@ class BusinessCreate(BaseModel):
     website_url: str | None = None
     address: str | None = None
     notes: str | None = None
+    contact_email: str | None = None
 
 
 class DiscoverRequest(BaseModel):
