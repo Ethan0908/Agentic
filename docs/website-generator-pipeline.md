@@ -1,6 +1,6 @@
 # Website Generator Pipeline
 
-The dashboard's **Build + deploy** button is now meant to run the full website pipeline:
+The dashboard's **Build + deploy** button runs the full website pipeline automatically:
 
 ```text
 lead in PostgreSQL
@@ -12,6 +12,24 @@ lead in PostgreSQL
   -> create/reuse a Vercel project
   -> create a production deployment
   -> save GitHub/Vercel URLs back to PostgreSQL
+```
+
+The main endpoint is now:
+
+```text
+POST /businesses/<business_id>/build-site
+```
+
+That endpoint does **everything**. The older longer endpoint still exists as an alias:
+
+```text
+POST /businesses/<business_id>/build-publish-deploy-site
+```
+
+Use `generate-site-only` only for debugging:
+
+```text
+POST /businesses/<business_id>/generate-site-only
 ```
 
 ## Why Codex is in the backend container
@@ -50,7 +68,7 @@ VERCEL_TOKEN=your_vercel_token
 VERCEL_TEAM_ID=
 ```
 
-Leave `GITHUB_TEMPLATE_REPO` empty unless you specifically want to create from a GitHub template repo. The backend now creates a generated repo directly and uploads the generated site files.
+Leave `GITHUB_TEMPLATE_REPO` empty unless you specifically want to create from a GitHub template repo. The backend creates a generated repo directly and uploads the generated site files.
 
 ## Codex setup on the Pi
 
@@ -99,6 +117,8 @@ The generated business website will get its own repo, such as:
 Ethan0908/arbutus-dental-vancouver
 ```
 
+The backend stores the actual GitHub `full_name` returned by GitHub, such as `Ethan0908/arbutus-dental-vancouver`, so later Vercel deployment does not have to guess the repo owner.
+
 The same files are also archived in:
 
 ```text
@@ -116,13 +136,13 @@ If Vercel cannot access the GitHub repo, the API call will fail even if `VERCEL_
 Replace `BUSINESS_ID`:
 
 ```bash
-curl -X POST http://localhost:8000/businesses/BUSINESS_ID/build-publish-deploy-site
+curl -X POST http://localhost:8000/businesses/BUSINESS_ID/build-site
 ```
 
 Or from another machine over Tailscale:
 
 ```bash
-curl -X POST http://TAILSCALE_IP:8000/businesses/BUSINESS_ID/build-publish-deploy-site
+curl -X POST http://TAILSCALE_IP:8000/businesses/BUSINESS_ID/build-site
 ```
 
 ## Debug order
