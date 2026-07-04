@@ -9,6 +9,31 @@ class PlacesNotConfiguredError(RuntimeError):
     pass
 
 
+GENERIC_PLACE_CATEGORIES = {
+    "business",
+    "establishment",
+    "point of interest",
+    "restaurant",
+    "food",
+    "store",
+    "service establishment",
+    "local business",
+}
+
+
+def _best_category(primary_type_text: str | None, search_keyword: str | None) -> str | None:
+    """Prefer the user's Places search term when Google's display category is broad.
+
+    Example: searching "sushi restaurant" often returns a Google primary type of
+    just "Restaurant". For site generation, "sushi restaurant" is more useful.
+    """
+    clean_primary = (primary_type_text or "").strip()
+    clean_keyword = (search_keyword or "").strip()
+    if clean_keyword and (not clean_primary or clean_primary.lower() in GENERIC_PLACE_CATEGORIES):
+        return clean_keyword
+    return clean_primary or clean_keyword or None
+
+
 class GooglePlacesClient:
     """Small wrapper around Google Places Text Search.
 
@@ -64,13 +89,15 @@ def normalise_place(place: dict, city: str | None = None, search_keyword: str | 
         **place,
         "searchKeyword": search_keyword,
         "searchLocation": search_location or city,
+        "classificationCategory": _best_category(primary_type_text, search_keyword),
     }
     return {
         "place_id": place.get("id"),
         "name": display_name.get("text") or "Unknown business",
-        # Prefer Google's primary type, but fall back to the Places search term.
-        # This gives Codex category context even when Places gives a weak/null type.
-        "category": primary_type_text or search_keyword,
+        # Prefer search term when Google gives a broad category. This prevents
+        # a "sushi restaurant" search from degenerating into generic Restaurant,
+        # and a "plumber" search from losing service-business context.
+        "category": _best_category(primary_type_text, search_keyword),
         "phone": place.get("internationalPhoneNumber") or place.get("nationalPhoneNumber"),
         "website_url": place.get("websiteUri"),
         "address": place.get("formattedAddress"),
