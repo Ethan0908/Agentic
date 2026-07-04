@@ -69,8 +69,6 @@ def business_context_text(business: Business) -> str:
 
 def infer_business_type(business: Business) -> str:
     text = business_context_text(business)
-    # Most-specific classifiers first. This avoids a broad Google type like
-    # "Restaurant" overriding the user's original "sushi restaurant" search.
     if any(word in text for word in ["sushi", "ramen", "izakaya", "japanese"]):
         return "sushi restaurant"
     if any(word in text for word in ["dentist", "dental", "orthodont"]):
@@ -101,47 +99,75 @@ def infer_design_style(business_type: str, context_text: str) -> str:
     return "professional-local"
 
 
-def business_type_defaults(business_type: str, design_style: str) -> dict:
+def _city_phrase(city: str | None) -> str:
+    return f" in {city}" if city else ""
+
+
+def business_type_defaults(business_type: str, design_style: str, business_name: str, city: str | None) -> dict:
     lower_type = business_type.lower()
+    city_phrase = _city_phrase(city)
+
     if "sushi" in lower_type:
         return {
-            "services": ["Sushi and rolls", "Takeout and pickup", "Dine-in experience", "Party trays and group orders"],
-            "cta": "Call to order or reserve a table",
-            "subheadline": "A clean, mobile-friendly sushi restaurant site built around menu discovery, quick calls, and directions.",
+            "headline": f"Sushi, takeout, and dine-in for {business_name}",
+            "services": ["Sushi rolls and chef selections", "Takeout and pickup", "Dine-in service", "Party trays and group orders"],
+            "cta": "Call to order or reserve",
+            "subheadline": f"A mobile-friendly sushi restaurant site for customers looking for menus, pickup, directions, and quick contact{city_phrase}.",
             "designDirection": "Warm restaurant layout, appetizing sections, refined typography, moderate rounded corners only.",
         }
     if "restaurant" in lower_type:
         return {
-            "services": ["Menu highlights", "Dine-in experience", "Takeout and pickup", "Group orders and catering"],
-            "cta": "Call to order or reserve a table",
-            "subheadline": "A clean, mobile-friendly restaurant site built around menu discovery, quick calls, and directions.",
+            "headline": f"A better local restaurant site for {business_name}",
+            "services": ["Menu highlights", "Dine-in information", "Takeout and pickup", "Location and contact"],
+            "cta": "Call for current hours or ordering",
+            "subheadline": f"A clear restaurant site built around menu discovery, quick calls, and directions{city_phrase}.",
             "designDirection": "Hospitality layout, clear menu/service blocks, tasteful visuals, moderate rounded corners only.",
         }
     if "dental" in lower_type:
         return {
+            "headline": f"Patient-focused dental care at {business_name}",
             "services": ["Preventive care", "Cosmetic dentistry", "Emergency appointments", "Family dental services"],
-            "cta": "Book an appointment",
-            "subheadline": "A clear dental clinic site focused on appointments, services, trust, and location.",
-            "designDirection": "Clean clinical layout, white space, calm trust-building sections, subtle rounded corners.",
+            "cta": "Call to book an appointment",
+            "subheadline": f"A clean dental clinic site focused on appointments, services, trust, and location{city_phrase}.",
+            "designDirection": "Clean clinical layout, white space, calm trust-building sections, subtle corners.",
         }
-    if "plumbing" in lower_type or design_style == "rugged-blue-collar":
+    if "plumbing" in lower_type:
         return {
-            "services": ["Emergency service calls", "Repairs and troubleshooting", "Installation help", "Residential and local service"],
+            "headline": f"Reliable plumbing help from {business_name}",
+            "services": ["Emergency plumbing calls", "Drain and leak troubleshooting", "Water heater help", "Residential service visits"],
+            "cta": "Call for plumbing service",
+            "subheadline": f"A direct service-business site focused on urgent calls, clear service areas, and customer confidence{city_phrase}.",
+            "designDirection": "Blue-collar layout: strong blocky sections, square or low-radius corners, bold contact CTA, practical service cards, no soft startup/SaaS look.",
+        }
+    if design_style == "rugged-blue-collar":
+        return {
+            "headline": f"Dependable local service from {business_name}",
+            "services": ["Service calls", "Repairs and troubleshooting", "Installation help", "Residential and local service"],
             "cta": "Call for service",
-            "subheadline": "A direct, hard-working service site focused on calls, service areas, and customer confidence.",
+            "subheadline": f"A practical service-company site focused on phone calls, service areas, and clear next steps{city_phrase}.",
             "designDirection": "Blue-collar layout: strong blocky sections, square or low-radius corners, bold contact CTA, practical service cards, no soft startup/SaaS look.",
         }
     if "salon" in lower_type:
         return {
+            "headline": f"Book services with {business_name}",
             "services": ["Hair and styling services", "Appointments", "Beauty treatments", "Location and contact"],
-            "cta": "Book a visit",
-            "subheadline": "A polished salon site built for bookings, service discovery, and mobile customers.",
+            "cta": "Call to book a visit",
+            "subheadline": f"A polished salon site built for bookings, service discovery, and mobile customers{city_phrase}.",
             "designDirection": "Polished lifestyle layout, elegant typography, visual service sections, moderate rounded corners.",
         }
+    if "fitness" in lower_type:
+        return {
+            "headline": f"Train with {business_name}",
+            "services": ["Classes or training", "Membership information", "Schedule inquiries", "Location and contact"],
+            "cta": "Call to ask about training",
+            "subheadline": f"A fitness site focused on programs, calls, and getting new members through the door{city_phrase}.",
+            "designDirection": "Energetic local-business layout with strong CTAs and practical program sections.",
+        }
     return {
-        "services": ["Mobile-first landing page", "Clear contact section", "Service highlights", "Fast Vercel hosting"],
+        "headline": f"A clearer website for {business_name}",
+        "services": ["What you offer", "Contact and location", "Service highlights", "Fast mobile experience"],
         "cta": "Contact us today",
-        "subheadline": "Fast, mobile-friendly, and focused on calls, directions, and new customers.",
+        "subheadline": f"A mobile-first local-business site focused on calls, directions, and new customers{city_phrase}.",
         "designDirection": "Professional local-business layout. Choose styling based on the category, not a generic sushi/restaurant template.",
     }
 
@@ -152,7 +178,7 @@ def build_business_payload(business: Business, website_url: str | None = None) -
     context_text = business_context_text(business)
     business_type = infer_business_type(business)
     design_style = infer_design_style(business_type, context_text)
-    defaults = business_type_defaults(business_type, design_style)
+    defaults = business_type_defaults(business_type, design_style, business.name, business.city)
     return {
         "name": business.name,
         "category": business.category or search_keyword or business_type,
@@ -169,7 +195,7 @@ def build_business_payload(business: Business, website_url: str | None = None) -
         "address": business.address,
         "originalWebsite": business.website_url,
         "previewWebsite": website_url,
-        "headline": f"A cleaner website concept for {business.name}",
+        "headline": defaults["headline"],
         "subheadline": defaults["subheadline"],
         "services": defaults["services"],
         "cta": defaults["cta"],
