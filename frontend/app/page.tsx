@@ -213,7 +213,7 @@ export default function DashboardPage() {
             <input value={location} onChange={(event) => setLocation(event.target.value)} placeholder="city" />
             <button onClick={discover} disabled={loading}>Discover</button>
           </div>
-          <p className="hint">Requires GOOGLE_PLACES_API_KEY in .env. Places results give Codex category context automatically.</p>
+          <p className="hint">Requires GOOGLE_PLACES_API_KEY in .env. The search keyword and Places category are passed to Codex for classification.</p>
         </div>
         <div>
           <h2>Manual lead</h2>
@@ -252,6 +252,7 @@ export default function DashboardPage() {
               <tr>
                 <th>Business</th>
                 <th>Status</th>
+                <th>Phone</th>
                 <th>Generated site</th>
                 <th>Original</th>
                 <th>Actions</th>
@@ -265,6 +266,7 @@ export default function DashboardPage() {
                     <span>{business.category || business.city || "No category"}</span>
                   </td>
                   <td><code>{business.latest_deployment_status || business.status}</code></td>
+                  <td>{business.phone ? <a href={`tel:${business.phone}`}>{business.phone}</a> : "—"}</td>
                   <td>
                     {business.latest_vercel_url ? <a href={business.latest_vercel_url} target="_blank">Vercel</a> : null}
                     {business.latest_vercel_url && business.latest_github_repo_url ? " · " : null}
