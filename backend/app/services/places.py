@@ -35,7 +35,9 @@ class GooglePlacesClient:
                     "places.nationalPhoneNumber",
                     "places.internationalPhoneNumber",
                     "places.websiteUri",
+                    "places.primaryType",
                     "places.primaryTypeDisplayName",
+                    "places.types",
                     "places.googleMapsUri",
                 ]
             ),
@@ -54,17 +56,25 @@ class GooglePlacesClient:
         return data.get("places", [])[:max_results]
 
 
-def normalise_place(place: dict, city: str | None = None) -> dict:
+def normalise_place(place: dict, city: str | None = None, search_keyword: str | None = None, search_location: str | None = None) -> dict:
     display_name = place.get("displayName") or {}
     primary_type = place.get("primaryTypeDisplayName") or {}
+    primary_type_text = primary_type.get("text")
+    raw_data = {
+        **place,
+        "searchKeyword": search_keyword,
+        "searchLocation": search_location or city,
+    }
     return {
         "place_id": place.get("id"),
         "name": display_name.get("text") or "Unknown business",
-        "category": primary_type.get("text"),
+        # Prefer Google's primary type, but fall back to the Places search term.
+        # This gives Codex category context even when Places gives a weak/null type.
+        "category": primary_type_text or search_keyword,
         "phone": place.get("internationalPhoneNumber") or place.get("nationalPhoneNumber"),
         "website_url": place.get("websiteUri"),
         "address": place.get("formattedAddress"),
         "city": city,
         "source": "google_places",
-        "raw_data": place,
+        "raw_data": raw_data,
     }
