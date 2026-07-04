@@ -263,10 +263,18 @@ async def discover_businesses(payload: DiscoverRequest, db: Session = Depends(ge
 
     created: list[Business] = []
     for place in places:
-        normalised = normalise_place(place, city=payload.location)
+        normalised = normalise_place(place, city=payload.location, search_keyword=payload.keyword, search_location=payload.location)
         if normalised["place_id"]:
             existing = db.scalar(select(Business).where(Business.place_id == normalised["place_id"]))
             if existing:
+                # Keep old leads useful if the first crawl had weak/null category data.
+                if not existing.category:
+                    existing.category = normalised.get("category")
+                if existing.raw_data:
+                    existing.raw_data = {**existing.raw_data, "searchKeyword": payload.keyword, "searchLocation": payload.location}
+                else:
+                    existing.raw_data = normalised.get("raw_data")
+                log_event(db, existing.id, "business.rediscovered", {"keyword": payload.keyword, "location": payload.location})
                 continue
         business = Business(**normalised, status=LeadStatus.WEBSITE_FOUND if normalised.get("website_url") else LeadStatus.DISCOVERED)
         db.add(business)
