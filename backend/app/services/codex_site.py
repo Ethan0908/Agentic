@@ -60,6 +60,7 @@ def read_codex_output(site_dir: Path, fallback_repo_name: str) -> dict:
         "metadata_found": True,
         "site_title": data.get("site_title"),
         "business_type": data.get("business_type"),
+        "design_style": data.get("design_style"),
         "short_description": data.get("short_description"),
     }
 
@@ -116,16 +117,19 @@ Business context:
 {_business_context(business, business_json)}
 
 Task:
-- Decide what kind of website this business needs from the business name, Google Places category/types, the original Places search keyword, city, address, phone, email, and any supplied public data.
-- The original Places search keyword is strong classification evidence. For example, if the search keyword is "sushi restaurant", build a sushi restaurant website unless the individual business data clearly contradicts it.
-- Build the site for that exact business type. Examples:
+- First classify the company from all available evidence: business name, Google Places category/types, original Places search keyword, city, address, phone, email, and supplied public data.
+- The original Places search keyword is strong classification evidence. If searchKeyword is "plumber", "electrician", "roofing", "HVAC", "contractor", etc., treat it as a blue-collar/service business unless the individual business data clearly contradicts it.
+- Only create a sushi/Japanese restaurant website if the name, Places category/types, or searchKeyword explicitly supports sushi, ramen, izakaya, Japanese food, or restaurant. Do not use sushi sections for unrelated companies.
+- Build the site for the exact business type. Examples:
   - Sushi restaurant: menu highlights, dine-in/takeout, reservations, catering/party trays, location, hours placeholder, phone CTA.
   - Dentist: appointments, dental services, emergency/cleaning/cosmetic sections, insurance/location CTAs.
-  - Plumbing company: emergency plumbing, drain cleaning, water heater, service area, phone CTA.
+  - Blue-collar/service company: emergency/service calls, service area, repair/install sections, phone-first CTA, practical trust blocks.
   - Salon: services, booking, stylists, location, phone/email CTA.
-- Never make a generic plumbing, dental, or contractor website unless the business context actually supports that category.
-- Do not rely on the original business website URL to generate content. Treat it only as an optional outbound reference link if present.
-- Rewrite business.json so headline, subheadline, services, cta, and category match the inferred business type.
+- Match the visual style to business_json.designStyle and business_json.designDirection.
+- If designStyle is rugged-blue-collar, use a tougher, more rectangular design: square or small-radius corners, bold section dividers, strong phone CTA, fewer soft shadows, no bubbly/startup/SaaS look, no excessive rounded pills.
+- If designStyle is hospitality, use a warmer restaurant layout, but still avoid overusing rounded corners.
+- If designStyle is clean-clinical, use calm white space, trust-building service sections, and subtle corners.
+- Rewrite business.json so headline, subheadline, services, cta, category, businessType, designStyle, and designDirection match the inferred company type.
 - Keep every claim truthful. Use generic placeholders such as "Call for current hours" instead of inventing exact hours, awards, menu prices, staff names, or reviews.
 - Keep the site self-contained, polished, mobile-first, fast, and conversion-focused.
 - Keep calls, address/directions, email, phone, and original website link visible when available.
@@ -137,7 +141,8 @@ Task:
   {{
     "repo_name": "lowercase-dash-separated-repo-name",
     "site_title": "short public site title",
-    "business_type": "inferred type such as sushi restaurant, dental clinic, salon, plumber",
+    "business_type": "inferred type such as sushi restaurant, dental clinic, blue-collar service business, salon",
+    "design_style": "rugged-blue-collar | hospitality | clean-clinical | polished-lifestyle | professional-local",
     "short_description": "one sentence summary"
   }}
 - The repo_name must use only lowercase letters, numbers, dashes, underscores, or dots. No spaces. No owner prefix. No slash.
