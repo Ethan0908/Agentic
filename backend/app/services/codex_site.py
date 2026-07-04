@@ -11,6 +11,8 @@ from app.models import Business
 
 
 CODEX_OUTPUT_FILE = "codex-output.json"
+ALLOWED_REASONING_EFFORTS = {"minimal", "low", "medium", "high", "xhigh"}
+ALLOWED_VERBOSITY = {"low", "medium", "high"}
 
 
 def _codex_command() -> str | None:
@@ -35,6 +37,7 @@ def _business_context(business: Business, business_json: dict) -> str:
                 "phone": business.phone,
                 "website_url": business.website_url,
                 "address": business.address,
+                "raw_data": business.raw_data,
             },
             "business_json": business_json,
         },
@@ -59,6 +62,22 @@ def read_codex_output(site_dir: Path, fallback_repo_name: str) -> dict:
         "business_type": data.get("business_type"),
         "short_description": data.get("short_description"),
     }
+
+
+def _add_codex_config_overrides(command: list[str]) -> None:
+    settings = get_settings()
+    reasoning_effort = (settings.codex_reasoning_effort or "").strip().lower()
+    verbosity = (settings.codex_verbosity or "").strip().lower()
+
+    if reasoning_effort:
+        if reasoning_effort not in ALLOWED_REASONING_EFFORTS:
+            raise RuntimeError(f"Invalid CODEX_REASONING_EFFORT={reasoning_effort}. Use minimal, low, medium, high, or xhigh.")
+        command.extend(["-c", f"model_reasoning_effort=\"{reasoning_effort}\""])
+
+    if verbosity:
+        if verbosity not in ALLOWED_VERBOSITY:
+            raise RuntimeError(f"Invalid CODEX_VERBOSITY={verbosity}. Use low, medium, or high.")
+        command.extend(["-c", f"model_verbosity=\"{verbosity}\""])
 
 
 async def improve_site_with_codex(
@@ -97,7 +116,8 @@ Business context:
 {_business_context(business, business_json)}
 
 Task:
-- Decide what kind of website this business needs from the business name, category, city, address, phone, email, and any supplied public data.
+- Decide what kind of website this business needs from the business name, Google Places category/types, the original Places search keyword, city, address, phone, email, and any supplied public data.
+- The original Places search keyword is strong classification evidence. For example, if the search keyword is "sushi restaurant", build a sushi restaurant website unless the individual business data clearly contradicts it.
 - Build the site for that exact business type. Examples:
   - Sushi restaurant: menu highlights, dine-in/takeout, reservations, catering/party trays, location, hours placeholder, phone CTA.
   - Dentist: appointments, dental services, emergency/cleaning/cosmetic sections, insurance/location CTAs.
@@ -133,6 +153,7 @@ Task:
     ]
     if settings.codex_default_model:
         command.extend(["--model", settings.codex_default_model])
+    _add_codex_config_overrides(command)
     command.append(prompt)
 
     result = subprocess.run(
