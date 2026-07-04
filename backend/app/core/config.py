@@ -14,7 +14,9 @@ class Settings(BaseSettings):
 
     codex_enabled: bool = True
     codex_workdir: str = "/app/.generated-sites"
-    codex_default_model: str | None = None
+    codex_default_model: str | None = "gpt-5.5"
+    codex_reasoning_effort: str | None = "high"
+    codex_verbosity: str | None = "high"
     codex_timeout_seconds: int = 900
 
     smtp_host: str | None = None
