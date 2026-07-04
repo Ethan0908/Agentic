@@ -1,0 +1,31 @@
+{
+  "name": "Studio Smiles NYC",
+  "category": "Dentist",
+  "businessType": "dental clinic",
+  "searchKeyword": "dentist",
+  "placeTypes": [
+    "dentist",
+    "dental_clinic",
+    "medical_clinic",
+    "doctor",
+    "health",
+    "point_of_interest",
+    "establishment"
+  ],
+  "googlePrimaryType": "dentist",
+  "city": "New York City",
+  "phone": "+1 646-470-1376",
+  "email": null,
+  "address": "41 Park Ave #1C, New York, NY 10016, USA",
+  "originalWebsite": "http://www.studiosmilesnyc.com/",
+  "previewWebsite": null,
+  "headline": "A cleaner website concept for Studio Smiles NYC",
+  "subheadline": "A clear dental clinic site focused on appointments, services, trust, and location.",
+  "services": [
+    "Preventive care",
+    "Cosmetic dentistry",
+    "Emergency appointments",
+    "Family dental services"
+  ],
+  "cta": "Book an appointment"
+}
