@@ -20,11 +20,23 @@ def repo_slug_for_business(business: Business) -> str:
     return slug or f"business-{business.id}"
 
 
-def infer_business_type(name: str, category: str | None) -> str:
-    text = f"{name} {category or ''}".lower()
+def business_context_text(business: Business) -> str:
+    raw = business.raw_data or {}
+    parts = [business.name, business.category or "", raw.get("searchKeyword") or ""]
+    types = raw.get("types") or []
+    if isinstance(types, list):
+        parts.extend(str(item).replace("_", " ") for item in types)
+    primary_type = raw.get("primaryType")
+    if primary_type:
+        parts.append(str(primary_type).replace("_", " "))
+    return " ".join(part for part in parts if part).lower()
+
+
+def infer_business_type(business: Business) -> str:
+    text = business_context_text(business)
     if any(word in text for word in ["sushi", "ramen", "izakaya", "japanese"]):
         return "sushi restaurant"
-    if any(word in text for word in ["restaurant", "cafe", "pizza", "grill", "kitchen", "bistro", "bakery"]):
+    if any(word in text for word in ["restaurant", "cafe", "pizza", "grill", "kitchen", "bistro", "bakery", "meal takeaway", "food"]):
         return "restaurant"
     if any(word in text for word in ["dentist", "dental", "orthodont"]):
         return "dental clinic"
@@ -34,14 +46,20 @@ def infer_business_type(name: str, category: str | None) -> str:
         return "salon"
     if any(word in text for word in ["gym", "fitness", "yoga", "pilates"]):
         return "fitness studio"
-    return category or "local business"
+    return business.category or ((business.raw_data or {}).get("searchKeyword")) or "local business"
 
 
 def business_type_defaults(business_type: str) -> dict:
     lower_type = business_type.lower()
-    if "sushi" in lower_type or "restaurant" in lower_type:
+    if "sushi" in lower_type:
         return {
-            "services": ["Dine-in experience", "Takeout and pickup", "Menu highlights", "Group orders and catering"],
+            "services": ["Sushi and rolls", "Takeout and pickup", "Dine-in experience", "Party trays and group orders"],
+            "cta": "Call to order or reserve a table",
+            "subheadline": "A clean, mobile-friendly sushi restaurant site built around menu discovery, quick calls, and directions.",
+        }
+    if "restaurant" in lower_type:
+        return {
+            "services": ["Menu highlights", "Dine-in experience", "Takeout and pickup", "Group orders and catering"],
             "cta": "Call to order or reserve a table",
             "subheadline": "A clean, mobile-friendly restaurant site built around menu discovery, quick calls, and directions.",
         }
@@ -71,12 +89,17 @@ def business_type_defaults(business_type: str) -> dict:
 
 
 def build_business_payload(business: Business, website_url: str | None = None) -> dict:
-    business_type = infer_business_type(business.name, business.category)
+    raw = business.raw_data or {}
+    search_keyword = raw.get("searchKeyword")
+    business_type = infer_business_type(business)
     defaults = business_type_defaults(business_type)
     return {
         "name": business.name,
-        "category": business.category or business_type,
+        "category": business.category or search_keyword or business_type,
         "businessType": business_type,
+        "searchKeyword": search_keyword,
+        "placeTypes": raw.get("types") or [],
+        "googlePrimaryType": raw.get("primaryType"),
         "city": business.city,
         "phone": business.phone,
         "email": business.contacts[0].email if business.contacts else None,
