@@ -1,0 +1,29 @@
+{
+  "name": "Bond's Plumbing & Electric",
+  "category": "Electrician",
+  "businessType": "plumbing service",
+  "searchKeyword": "plumber",
+  "placeTypes": [
+    "electrician",
+    "plumber",
+    "service",
+    "point_of_interest",
+    "establishment"
+  ],
+  "googlePrimaryType": "electrician",
+  "city": "new york city",
+  "phone": "+1 718-701-3826",
+  "email": null,
+  "address": "94a Spring St, New York, NY 10012, USA",
+  "originalWebsite": "https://www.bondsplumbingelectric.com/",
+  "previewWebsite": null,
+  "headline": "A cleaner website concept for Bond's Plumbing & Electric",
+  "subheadline": "A fast service-business site focused on urgent calls, service areas, and customer confidence.",
+  "services": [
+    "Emergency plumbing",
+    "Drain cleaning",
+    "Water heater help",
+    "Residential service calls"
+  ],
+  "cta": "Call for service"
+}
