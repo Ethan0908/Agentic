@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
+import socket
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -58,6 +59,17 @@ def require_command(command: str, install_hint: str) -> None:
     if shutil.which(command):
         return
     raise PipelineError(f"Missing required command: {command}\n{install_hint}")
+
+
+def detect_lan_ip() -> str:
+    """Return the Pi's likely LAN IP for easier preview links."""
+
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.connect(("8.8.8.8", 80))
+            return sock.getsockname()[0]
+    except OSError:
+        return "<raspberry-pi-ip>"
 
 
 def resolve_profile_paths(profile_or_dir: Path) -> list[Path]:
@@ -147,9 +159,9 @@ def main() -> int:
     parser.add_argument("--skip-build", action="store_true", help="Skip npm run build.")
     parser.add_argument("--skip-quality", action="store_true", help="Skip the Python quality validator.")
     parser.add_argument("--continue-on-error", action="store_true", help="When processing a folder, continue after one lead fails.")
-    parser.add_argument("--preview", action="store_true", help="Start a dev preview server after generation/build. Only allowed for one lead file.")
+    parser.add_argument("--preview", action="store_true", help="Start a generated-site preview server. Only allowed for one lead file.")
     parser.add_argument("--host", default="0.0.0.0", help="Preview host. Default exposes the preview on the local network.")
-    parser.add_argument("--port", default="3000", help="Preview port.")
+    parser.add_argument("--port", default="3010", help="Preview port. Default is 3010 so it does not collide with the app frontend on 3000.")
     args = parser.parse_args()
 
     try:
@@ -195,7 +207,11 @@ def main() -> int:
 
         if args.preview and generated:
             site = generated[0]
-            print(f"\nStarting preview on http://{args.host}:{args.port}")
+            lan_ip = detect_lan_ip()
+            print("\nGenerated-site preview starting.")
+            print(f"Local URL:   http://localhost:{args.port}")
+            print(f"Network URL: http://{lan_ip}:{args.port}")
+            print("Use this URL, not the app frontend on port 3000.")
             run(["npm", "run", "dev", "--", "--hostname", args.host, "--port", args.port], cwd=site.path)
 
         return 0
