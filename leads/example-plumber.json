@@ -1,0 +1,46 @@
+{
+  "name": "NYC Emergency Plumbing",
+  "business_type": "emergency plumbing",
+  "city": "New York",
+  "service_area": "Manhattan, Brooklyn, and Queens",
+  "phone": "",
+  "primary_cta": "Request emergency service",
+  "secondary_cta": "See plumbing services",
+  "services": [
+    {
+      "title": "Drain clearing",
+      "description": "Clear blocked drains with a practical diagnosis before work starts."
+    },
+    {
+      "title": "Leak repair",
+      "description": "Find the source of the leak and explain the next step clearly."
+    },
+    {
+      "title": "Sewer service",
+      "description": "Understand the source of the blockage and the practical next step."
+    },
+    {
+      "title": "Fixture repair",
+      "description": "Handle common fixture issues with clear scope and tidy follow-through."
+    }
+  ],
+  "proof_points": [
+    "Clear scope before work starts",
+    "Service across Manhattan, Brooklyn, and Queens",
+    "Simple contact path for urgent plumbing issues"
+  ],
+  "process_steps": [
+    {
+      "title": "Share the problem",
+      "description": "Send the location, timing, and a short description of the plumbing issue."
+    },
+    {
+      "title": "Get the next step",
+      "description": "The request is scoped so the quote path, visit, or recommendation is clear."
+    },
+    {
+      "title": "Move forward",
+      "description": "The work proceeds with direct communication and practical expectations."
+    }
+  ]
+}
