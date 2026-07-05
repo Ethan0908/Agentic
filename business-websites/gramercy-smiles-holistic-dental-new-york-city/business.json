@@ -1,0 +1,55 @@
+{
+  "company": {
+    "id": 10,
+    "name": "Gramercy Smiles Holistic Dental",
+    "industry_hint": "Dentist",
+    "search_keyword": "dentist",
+    "search_location": "New York City",
+    "city": "New York City",
+    "address": "108 E 23rd St, New York, NY 10010, USA",
+    "phone": "+1 212-475-0284",
+    "email": null,
+    "original_website": "https://dentist-holistic.com/?y_source=1_MTA0OTc2ODE2OC03MTUtbG9jYXRpb24ud2Vic2l0ZQ%3D%3D",
+    "source": "google_places"
+  },
+  "places_data": {
+    "place_id": "ChIJF690J6FZwokRmw_1tzq0AA0",
+    "google_primary_type": "dentist",
+    "google_primary_type_display": {
+      "text": "Dentist",
+      "languageCode": "en-US"
+    },
+    "google_types": [
+      "dentist",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ],
+    "google_maps_url": "https://maps.google.com/?cid=936946886780456859&g_mp=Cidnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaFRleHQQAhgEIAA",
+    "formatted_address": "108 E 23rd St, New York, NY 10010, USA",
+    "national_phone": "(212) 475-0284",
+    "international_phone": "+1 212-475-0284",
+    "website_uri": "https://dentist-holistic.com/?y_source=1_MTA0OTc2ODE2OC03MTUtbG9jYXRpb24ud2Vic2l0ZQ%3D%3D"
+  },
+  "extra_research": {},
+  "generation_contract": {
+    "purpose": "Give Codex company data and let Codex decide the website strategy.",
+    "minimum_structure": [
+      "intro",
+      "body",
+      "supporting sections",
+      "offerings only if relevant",
+      "contact or conversion section"
+    ],
+    "rules": [
+      "Do not use a fixed template.",
+      "Do not reuse a previous generated website concept.",
+      "Do not force any single industry.",
+      "Codex decides the company type, tone, layout, and sections from the data.",
+      "Use only facts present in business.json, GENERATION_PROMPT.md, or extra_research.",
+      "Do not invent exact hours, prices, awards, staff names, reviews, guarantees, certifications, or product details.",
+      "If information is missing, use safe wording such as Contact us for details or Call for current information.",
+      "The final page should feel custom to this exact company."
+    ]
+  }
+}
