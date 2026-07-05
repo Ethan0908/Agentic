@@ -1,0 +1,29 @@
+{
+  "name": "Midtown Dental Care Associates",
+  "category": "Dentist",
+  "businessType": "dental clinic",
+  "searchKeyword": "dentist",
+  "placeTypes": [
+    "dentist",
+    "doctor",
+    "health",
+    "point_of_interest",
+    "establishment"
+  ],
+  "googlePrimaryType": "dentist",
+  "city": "New York City",
+  "phone": "+1 212-685-4730",
+  "email": null,
+  "address": "12 E 41st St Ste 1100, New York, NY 10017, USA",
+  "originalWebsite": "https://www.midtowndentalcareassociates.com/?utm_source=gmb&utm_medium=organic",
+  "previewWebsite": null,
+  "headline": "A cleaner website concept for Midtown Dental Care Associates",
+  "subheadline": "A clear dental clinic site focused on appointments, services, trust, and location.",
+  "services": [
+    "Preventive care",
+    "Cosmetic dentistry",
+    "Emergency appointments",
+    "Family dental services"
+  ],
+  "cta": "Book an appointment"
+}

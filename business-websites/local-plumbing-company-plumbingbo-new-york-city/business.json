@@ -1,0 +1,28 @@
+{
+  "name": "Local Plumbing Company - PlumbingBO",
+  "category": "Plumber",
+  "businessType": "plumbing service",
+  "searchKeyword": "plumber",
+  "placeTypes": [
+    "plumber",
+    "service",
+    "point_of_interest",
+    "establishment"
+  ],
+  "googlePrimaryType": "plumber",
+  "city": "new york city",
+  "phone": "+1 315-228-9299",
+  "email": null,
+  "address": "153 7th Ave, New York, NY 10011, USA",
+  "originalWebsite": "https://plumbingbo.com/",
+  "previewWebsite": null,
+  "headline": "A cleaner website concept for Local Plumbing Company - PlumbingBO",
+  "subheadline": "A fast service-business site focused on urgent calls, service areas, and customer confidence.",
+  "services": [
+    "Emergency plumbing",
+    "Drain cleaning",
+    "Water heater help",
+    "Residential service calls"
+  ],
+  "cta": "Call for service"
+}

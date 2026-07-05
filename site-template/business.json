@@ -1,0 +1,19 @@
+{
+  "name": "Example Business",
+  "category": "Local Business",
+  "city": "Vancouver",
+  "phone": "+1 604 000 0000",
+  "email": "hello@example.com",
+  "address": "123 Main Street",
+  "originalWebsite": "https://example.com",
+  "previewWebsite": null,
+  "headline": "A cleaner website concept for Example Business",
+  "subheadline": "Fast, mobile-friendly, and focused on calls, directions, and new customers.",
+  "services": [
+    "Mobile-first landing page",
+    "Clear contact section",
+    "Simple service highlights",
+    "Fast Vercel hosting"
+  ],
+  "cta": "Contact us today"
+}

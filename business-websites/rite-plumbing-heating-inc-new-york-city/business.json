@@ -1,0 +1,28 @@
+{
+  "name": "Rite Plumbing & Heating Inc",
+  "category": "Plumber",
+  "businessType": "plumbing service",
+  "searchKeyword": "plumber",
+  "placeTypes": [
+    "plumber",
+    "service",
+    "point_of_interest",
+    "establishment"
+  ],
+  "googlePrimaryType": "plumber",
+  "city": "new york city",
+  "phone": "+1 347-502-6441",
+  "email": null,
+  "address": "750 Lexington Ave 9th floor, New York, NY 10022, USA",
+  "originalWebsite": "http://www.riteplumbingnyc.com/",
+  "previewWebsite": null,
+  "headline": "A cleaner website concept for Rite Plumbing & Heating Inc",
+  "subheadline": "A fast service-business site focused on urgent calls, service areas, and customer confidence.",
+  "services": [
+    "Emergency plumbing",
+    "Drain cleaning",
+    "Water heater help",
+    "Residential service calls"
+  ],
+  "cta": "Call for service"
+}

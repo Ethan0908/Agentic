@@ -1,0 +1,58 @@
+{
+  "company": {
+    "id": 16,
+    "name": "RR Plumbing Roto-Rooter",
+    "industry_hint": "Plumber",
+    "search_keyword": "plumber",
+    "search_location": "new york city",
+    "city": "new york city",
+    "address": "450 7th Ave Ste B, New York, NY 10123, USA",
+    "phone": "+1 212-687-1215",
+    "email": null,
+    "original_website": "https://www.rotorooter.com/manhattan/?utm_source=Google&utm_medium=organic&utm_campaign=gmb&utm_content=website",
+    "source": "google_places"
+  },
+  "places_data": {
+    "place_id": "ChIJk3d6D_9YwokRFurrWHEK3L4",
+    "google_primary_type": "plumber",
+    "google_primary_type_display": {
+      "text": "Plumber",
+      "languageCode": "en-US"
+    },
+    "google_types": [
+      "plumber",
+      "general_contractor",
+      "service",
+      "store",
+      "point_of_interest",
+      "supplier",
+      "establishment"
+    ],
+    "google_maps_url": "https://maps.google.com/?cid=13752878844022090262&g_mp=Cidnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaFRleHQQAhgEIAA",
+    "formatted_address": "450 7th Ave Ste B, New York, NY 10123, USA",
+    "national_phone": "(212) 687-1215",
+    "international_phone": "+1 212-687-1215",
+    "website_uri": "https://www.rotorooter.com/manhattan/?utm_source=Google&utm_medium=organic&utm_campaign=gmb&utm_content=website"
+  },
+  "extra_research": {},
+  "generation_contract": {
+    "purpose": "Give Codex company data and let Codex decide the website strategy.",
+    "minimum_structure": [
+      "intro",
+      "body",
+      "supporting sections",
+      "offerings only if relevant",
+      "contact or conversion section"
+    ],
+    "rules": [
+      "Do not use a fixed template.",
+      "Do not reuse a previous generated website concept.",
+      "Do not force any single industry.",
+      "Codex decides the company type, tone, layout, and sections from the data.",
+      "Use only facts present in business.json, GENERATION_PROMPT.md, or extra_research.",
+      "Do not invent exact hours, prices, awards, staff names, reviews, guarantees, certifications, or product details.",
+      "If information is missing, use safe wording such as Contact us for details or Call for current information.",
+      "The final page should feel custom to this exact company."
+    ]
+  }
+}
