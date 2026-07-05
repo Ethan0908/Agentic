@@ -3,11 +3,19 @@
 import { useEffect, useMemo, useState } from "react";
 
 type Website = {
+  id: number;
   github_repo_name: string | null;
   github_repo_url: string | null;
   vercel_url: string | null;
   deployment_status: string;
   created_at: string;
+};
+
+type Contact = {
+  id: number;
+  email: string | null;
+  phone: string | null;
+  validation_status: string;
 };
 
 type Business = {
@@ -17,6 +25,8 @@ type Business = {
   category: string | null;
   phone: string | null;
   website_url: string | null;
+  primary_email?: string | null;
+  latest_website_id?: number | null;
   latest_github_repo_name?: string | null;
   latest_github_repo_url?: string | null;
   latest_vercel_url?: string | null;
@@ -57,6 +67,14 @@ export default function DashboardPage() {
   const [manualEmail, setManualEmail] = useState("");
   const [message, setMessage] = useState("Ready.");
   const [loading, setLoading] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [queueStatus, setQueueStatus] = useState<string[]>([]);
+  const [queueRunning, setQueueRunning] = useState(false);
+
+  const selectedBusinesses = useMemo(
+    () => businesses.filter((business) => selectedIds.has(business.id)),
+    [businesses, selectedIds]
+  );
 
   async function refresh() {
     const [businessResponse, statsResponse] = await Promise.all([
@@ -74,21 +92,32 @@ export default function DashboardPage() {
 
     const enrichedBusinesses = await Promise.all(
       nextBusinesses.map(async (business) => {
-        if (business.latest_vercel_url || business.latest_github_repo_url) {
-          return business;
-        }
         try {
-          const websiteResponse = await fetch(`${apiBase}/businesses/${business.id}/websites`, { cache: "no-store" });
-          if (!websiteResponse.ok) return business;
-          const websites: Website[] = await websiteResponse.json();
-          const latest = latestWebsite(websites);
-          if (!latest) return business;
+          const [websiteResponse, contactsResponse] = await Promise.all([
+            fetch(`${apiBase}/businesses/${business.id}/websites`, { cache: "no-store" }),
+            fetch(`${apiBase}/businesses/${business.id}/contacts`, { cache: "no-store" })
+          ]);
+
+          let latest: Website | null = null;
+          if (websiteResponse.ok) {
+            const websites: Website[] = await websiteResponse.json();
+            latest = latestWebsite(websites);
+          }
+
+          let contacts: Contact[] = [];
+          if (contactsResponse.ok) {
+            contacts = await contactsResponse.json();
+          }
+          const primaryEmail = contacts.find((contact) => contact.email)?.email || null;
+
           return {
             ...business,
-            latest_github_repo_name: latest.github_repo_name,
-            latest_github_repo_url: latest.github_repo_url,
-            latest_vercel_url: latest.vercel_url,
-            latest_deployment_status: latest.deployment_status
+            primary_email: primaryEmail,
+            latest_website_id: latest?.id || null,
+            latest_github_repo_name: latest?.github_repo_name || business.latest_github_repo_name,
+            latest_github_repo_url: latest?.github_repo_url || business.latest_github_repo_url,
+            latest_vercel_url: latest?.vercel_url || business.latest_vercel_url,
+            latest_deployment_status: latest?.deployment_status || business.latest_deployment_status
           };
         } catch {
           return business;
@@ -102,6 +131,26 @@ export default function DashboardPage() {
   useEffect(() => {
     refresh().catch(() => setMessage(`Could not reach backend at ${apiBase}. Check API_BASE_URL, Docker, and migrations.`));
   }, [apiBase]);
+
+  function toggleSelected(id: number) {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }
+
+  function selectAllVisible() {
+    setSelectedIds(new Set(businesses.map((business) => business.id)));
+  }
+
+  function clearSelected() {
+    setSelectedIds(new Set());
+  }
 
   async function runAction(label: string, action: () => Promise<Response>, openResult = false) {
     setLoading(true);
@@ -124,6 +173,43 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function runSelectedQueue(label: string, endpoint: (business: Business) => string, options?: RequestInit) {
+    if (selectedBusinesses.length === 0) {
+      setMessage("Select at least one company first.");
+      return;
+    }
+
+    setLoading(true);
+    setQueueRunning(true);
+    setQueueStatus([]);
+
+    const results: string[] = [];
+    for (let index = 0; index < selectedBusinesses.length; index += 1) {
+      const business = selectedBusinesses[index];
+      const prefix = `${index + 1}/${selectedBusinesses.length} ${business.name}`;
+      setMessage(`${label}: ${prefix}`);
+
+      try {
+        const response = await fetch(endpoint(business), { method: "POST", ...(options || {}) });
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({ detail: response.statusText }));
+          throw new Error(error.detail || response.statusText);
+        }
+        const data = await response.json().catch(() => null);
+        const url = data?.vercel_url || data?.github_repo_url;
+        results.push(`✅ ${prefix}${url ? ` — ${url}` : ""}`);
+      } catch (error) {
+        results.push(`❌ ${prefix} — ${error instanceof Error ? error.message : "failed"}`);
+      }
+      setQueueStatus([...results]);
+      await refresh();
+    }
+
+    setMessage(`${label} queue finished.`);
+    setLoading(false);
+    setQueueRunning(false);
   }
 
   async function discover() {
@@ -160,34 +246,15 @@ export default function DashboardPage() {
     setManualEmail("");
   }
 
-  async function enrich(id: number) {
-    await runAction("Finding emails", () => fetch(`${apiBase}/businesses/${id}/enrich-email`, { method: "POST" }));
-  }
-
-  async function validateEmails(id: number) {
-    await runAction("Validating emails", () => fetch(`${apiBase}/businesses/${id}/validate-emails`, { method: "POST" }));
-  }
-
-  async function buildSite(id: number) {
-    await runAction(
-      "Building with Codex, publishing GitHub repo, and deploying Vercel",
-      () => fetch(`${apiBase}/businesses/${id}/build-site`, { method: "POST" }),
-      true
-    );
-  }
-
-  async function draftEmail(id: number) {
-    await runAction("Creating local email draft", () =>
-      fetch(`${apiBase}/businesses/${id}/draft-email`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ use_gpt: false })
-      })
-    );
-  }
-
-  async function sendEmail(id: number) {
-    await runAction("Sending latest email", () => fetch(`${apiBase}/businesses/${id}/send-latest-email`, { method: "POST" }));
+  async function deleteSelectedSites() {
+    if (selectedBusinesses.length === 0) {
+      setMessage("Select at least one company first.");
+      return;
+    }
+    if (!window.confirm(`Delete generated GitHub/Vercel site for ${selectedBusinesses.length} selected company/companies?`)) {
+      return;
+    }
+    await runSelectedQueue("Deleting generated sites", (business) => `${apiBase}/businesses/${business.id}/delete-latest-site`);
   }
 
   return (
@@ -219,12 +286,12 @@ export default function DashboardPage() {
           <h2>Manual lead</h2>
           <div className="formRow">
             <input value={manualName} onChange={(event) => setManualName(event.target.value)} placeholder="business name" />
-            <input value={manualCategory} onChange={(event) => setManualCategory(event.target.value)} placeholder="business type, e.g. sushi restaurant" />
+            <input value={manualCategory} onChange={(event) => setManualCategory(event.target.value)} placeholder="business type, e.g. plumber" />
             <input value={manualWebsite} onChange={(event) => setManualWebsite(event.target.value)} placeholder="optional original website URL" />
             <input value={manualEmail} onChange={(event) => setManualEmail(event.target.value)} placeholder="contact email" />
             <button onClick={createManualLead} disabled={loading}>Add</button>
           </div>
-          <p className="hint">For manual leads, add a business type like sushi restaurant, dentist, salon, or plumber so Codex builds the right site.</p>
+          <p className="hint">For manual leads, add a specific business type so Codex builds the right site and not a generic recycled layout.</p>
         </div>
       </section>
 
@@ -242,31 +309,50 @@ export default function DashboardPage() {
           ))}
         </div>
         <p className="message">{message}</p>
+        {queueStatus.length > 0 && (
+          <div className="queueLog">
+            {queueStatus.map((line) => <p key={line}>{line}</p>)}
+          </div>
+        )}
       </section>
 
-      <section className="panel">
-        <h2>Leads</h2>
+      <section className="panel leadsPanel">
+        <div className="panelHeader">
+          <h2>Leads</h2>
+          <div className="inlineControls">
+            <button type="button" onClick={selectAllVisible} disabled={loading || businesses.length === 0}>Select visible</button>
+            <button type="button" onClick={clearSelected} disabled={loading || selectedIds.size === 0}>Clear</button>
+          </div>
+        </div>
         <div className="tableWrap">
           <table>
             <thead>
               <tr>
+                <th className="selectCol">Use</th>
                 <th>Business</th>
                 <th>Status</th>
                 <th>Phone</th>
+                <th>Email</th>
                 <th>Generated site</th>
                 <th>Original</th>
-                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {businesses.map((business) => (
-                <tr key={business.id}>
+                <tr key={business.id} className={selectedIds.has(business.id) ? "selectedRow" : ""}>
+                  <td className="selectCol">
+                    <label className="checkWrap" aria-label={`Select ${business.name}`}>
+                      <input type="checkbox" checked={selectedIds.has(business.id)} onChange={() => toggleSelected(business.id)} />
+                      <span>✓</span>
+                    </label>
+                  </td>
                   <td>
                     <strong>{business.name}</strong>
                     <span>{business.category || business.city || "No category"}</span>
                   </td>
                   <td><code>{business.latest_deployment_status || business.status}</code></td>
                   <td>{business.phone ? <a href={`tel:${business.phone}`}>{business.phone}</a> : "—"}</td>
+                  <td>{business.primary_email ? <a href={`mailto:${business.primary_email}`}>{business.primary_email}</a> : "—"}</td>
                   <td>
                     {business.latest_vercel_url ? <a href={business.latest_vercel_url} target="_blank">Vercel</a> : null}
                     {business.latest_vercel_url && business.latest_github_repo_url ? " · " : null}
@@ -274,19 +360,22 @@ export default function DashboardPage() {
                     {!business.latest_vercel_url && !business.latest_github_repo_url ? "—" : null}
                   </td>
                   <td>{business.website_url ? <a href={business.website_url} target="_blank">Original</a> : "—"}</td>
-                  <td className="actions">
-                    <button onClick={() => enrich(business.id)} disabled={loading || !business.website_url}>Find email</button>
-                    <button onClick={() => validateEmails(business.id)} disabled={loading}>Validate</button>
-                    <button onClick={() => buildSite(business.id)} disabled={loading}>Build + deploy</button>
-                    <button onClick={() => draftEmail(business.id)} disabled={loading}>Draft</button>
-                    <button onClick={() => sendEmail(business.id)} disabled={loading}>Send</button>
-                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
       </section>
+
+      <div className="floatingActions" aria-label="Selected company actions">
+        <div className="selectionSummary">{selectedIds.size} selected</div>
+        <button onClick={() => runSelectedQueue("Finding emails", (business) => `${apiBase}/businesses/${business.id}/enrich-email`)} disabled={loading || selectedIds.size === 0}>Find email</button>
+        <button onClick={() => runSelectedQueue("Validating emails", (business) => `${apiBase}/businesses/${business.id}/validate-emails`)} disabled={loading || selectedIds.size === 0}>Validate</button>
+        <button onClick={() => runSelectedQueue("Building sites", (business) => `${apiBase}/businesses/${business.id}/build-site`)} disabled={loading || selectedIds.size === 0}>Build</button>
+        <button onClick={() => runSelectedQueue("Drafting emails", (business) => `${apiBase}/businesses/${business.id}/draft-email`, { headers: { "Content-Type": "application/json" }, body: JSON.stringify({ use_gpt: false }) })} disabled={loading || selectedIds.size === 0}>Draft</button>
+        <button onClick={() => runSelectedQueue("Sending emails", (business) => `${apiBase}/businesses/${business.id}/send-latest-email`)} disabled={loading || selectedIds.size === 0}>Send</button>
+        <button className="danger" onClick={deleteSelectedSites} disabled={loading || selectedIds.size === 0 || queueRunning}>Delete site</button>
+      </div>
     </main>
   );
 }
