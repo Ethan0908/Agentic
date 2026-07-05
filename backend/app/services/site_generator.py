@@ -3,9 +3,12 @@
 GitHub is the source of truth for this file. The Raspberry Pi should run a direct
 copy of the repository instead of keeping separate local-only generator logic.
 
-This service keeps the baseline website quality high even before Codex touches the
-site: it copies the canonical Next.js template, writes a normalized business data
-file, then optionally hands the generated site to Codex for tasteful customisation.
+The generator no longer relies on one template and one huge prompt. It now:
+1. normalizes business data,
+2. selects a design system,
+3. creates a compact site plan,
+4. writes business/design/section JSON into the generated site,
+5. optionally launches Claude Code project subagents for refinement.
 """
 
 from __future__ import annotations
@@ -17,6 +20,11 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
+
+try:
+    from .agentic_site_builder import build_claude_agent_prompt, build_site_plan, run_claude_refinement, write_site_plan
+except ImportError:  # pragma: no cover - lets this file run as a direct script during local debugging.
+    from agentic_site_builder import build_claude_agent_prompt, build_site_plan, run_claude_refinement, write_site_plan
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -32,6 +40,7 @@ class GeneratedSite:
     slug: str
     path: Path
     business_name: str
+    design_system: str
 
 
 class SiteGenerationError(RuntimeError):
@@ -70,15 +79,15 @@ def normalize_business_profile(raw: Mapping[str, Any]) -> dict[str, Any]:
     """
 
     name = _string(raw.get("name") or raw.get("business_name"), "Local Service Company")
-    business_type = _string(raw.get("business_type") or raw.get("category"), "local service")
+    business_type = _string(raw.get("business_type") or raw.get("businessType") or raw.get("category"), "local service")
     city = _string(raw.get("city") or raw.get("location"), "your area")
-    service_area = _string(raw.get("service_area"), city)
+    service_area = _string(raw.get("service_area") or raw.get("serviceArea"), city)
     phone = _string(raw.get("phone") or raw.get("phone_number"))
     email = _string(raw.get("email"))
     website = _string(raw.get("website") or raw.get("url"))
 
-    primary_cta = _string(raw.get("primary_cta"), "Request a quote")
-    secondary_cta = _string(raw.get("secondary_cta"), "See services")
+    primary_cta = _string(raw.get("primary_cta") or raw.get("primaryCta"), "Request a quote")
+    secondary_cta = _string(raw.get("secondary_cta") or raw.get("secondaryCta"), "See services")
 
     services = _list(raw.get("services")) or [
         {"title": "Assessment", "description": "Understand the issue, scope, and next step before work begins."},
@@ -87,13 +96,13 @@ def normalize_business_profile(raw: Mapping[str, Any]) -> dict[str, Any]:
         {"title": "Maintenance", "description": "Preventive service that helps reduce surprise problems later."},
     ]
 
-    proof_points = _list(raw.get("proof_points")) or [
+    proof_points = _list(raw.get("proof_points") or raw.get("proofPoints")) or [
         "Clear scope before work starts",
         "Practical scheduling and communication",
         f"Service across {service_area}",
     ]
 
-    process_steps = _list(raw.get("process_steps")) or [
+    process_steps = _list(raw.get("process_steps") or raw.get("processSteps")) or [
         {"title": "Tell us what you need", "description": "Share the issue, location, and timing so the request can be scoped properly."},
         {"title": "Get a clear next step", "description": "Receive a practical recommendation, quote path, or booking option."},
         {"title": "Complete the work", "description": "The job is handled with clear communication from start to finish."},
@@ -145,7 +154,7 @@ def normalize_business_profile(raw: Mapping[str, Any]) -> dict[str, Any]:
         "faqs": faqs,
         "offer": _string(raw.get("offer"), "Request a practical quote path based on your project details."),
         "guarantee": _string(raw.get("guarantee"), "Clear communication before work begins."),
-        "brandTone": _string(raw.get("brand_tone"), "premium, direct, calm, trustworthy"),
+        "brandTone": _string(raw.get("brand_tone") or raw.get("brandTone"), "premium, direct, calm, trustworthy"),
     }
 
 
@@ -154,12 +163,17 @@ def render_site_from_template(
     output_dir: Path | str = DEFAULT_OUTPUT_DIR,
     overwrite: bool = True,
 ) -> GeneratedSite:
-    """Copy the canonical template and write `site-template/data/business.json`."""
+    """Copy the canonical template and write compact plan files.
+
+    This still uses one canonical codebase, but it is no longer one visual
+    template. `design.json` and `sections.json` select different patterns.
+    """
 
     if not TEMPLATE_DIR.exists():
         raise SiteGenerationError(f"Missing canonical template folder: {TEMPLATE_DIR}")
 
     business = normalize_business_profile(raw_business)
+    site_plan = build_site_plan(business)
     slug = slugify(business["slug"])
     target = Path(output_dir) / slug
 
@@ -176,8 +190,14 @@ def render_site_from_template(
         json.dumps(business, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
+    write_site_plan(target, site_plan)
 
-    return GeneratedSite(slug=slug, path=target, business_name=business["name"])
+    return GeneratedSite(
+        slug=slug,
+        path=target,
+        business_name=business["name"],
+        design_system=site_plan.design["id"],
+    )
 
 
 def build_codex_instruction(raw_business: Mapping[str, Any]) -> str:
@@ -187,14 +207,15 @@ def build_codex_instruction(raw_business: Mapping[str, Any]) -> str:
         raise SiteGenerationError(f"Missing prompt file: {PROMPT_FILE}")
 
     business = normalize_business_profile(raw_business)
+    site_plan = build_site_plan(business)
     prompt = PROMPT_FILE.read_text(encoding="utf-8").strip()
     return (
         f"{prompt}\n\n"
-        "## Business profile JSON\n"
+        "## Compact site plan JSON\n"
         "```json\n"
-        f"{json.dumps(business, ensure_ascii=False, indent=2)}\n"
+        f"{json.dumps(site_plan.as_dict(), ensure_ascii=False, separators=(',', ':'))}\n"
         "```\n\n"
-        "Refine the generated site only where it improves quality, conversion, copy, responsiveness, performance, or maintainability. "
+        "Refine only where it improves quality, conversion, copy, responsiveness, performance, or maintainability. "
         "Do not add unverifiable claims. Do not change deployment assumptions. Ensure the project builds.\n"
     )
 
@@ -208,25 +229,33 @@ def run_codex_refinement(site_path: Path, instruction: str, codex_command: str =
     if not site_path.exists():
         raise SiteGenerationError(f"Cannot refine missing site path: {site_path}")
 
-    subprocess.run(
-        [codex_command, "exec", instruction],
-        cwd=site_path,
-        check=True,
-        text=True,
-    )
+    subprocess.run([codex_command, "exec", instruction], cwd=site_path, check=True, text=True)
 
 
 def generate_site(
     raw_business: Mapping[str, Any],
     output_dir: Path | str = DEFAULT_OUTPUT_DIR,
     refine_with_codex: bool = False,
+    refine_with_claude: bool = False,
 ) -> GeneratedSite:
-    """Render a premium baseline website and optionally refine it with Codex."""
+    """Render a premium baseline website and optionally refine with agents."""
 
-    generated = render_site_from_template(raw_business, output_dir=output_dir)
+    business = normalize_business_profile(raw_business)
+    site_plan = build_site_plan(business)
+    generated = render_site_from_template(business, output_dir=output_dir)
 
     if refine_with_codex:
-        instruction = build_codex_instruction(raw_business)
+        instruction = build_codex_instruction(business)
         run_codex_refinement(generated.path, instruction)
 
+    if refine_with_claude:
+        run_claude_refinement(site_plan, generated.path)
+
     return generated
+
+
+def build_claude_instruction_preview(raw_business: Mapping[str, Any], target_path: Path | str = "generated_sites/<slug>") -> str:
+    """Return the compact Claude Code orchestration prompt without running it."""
+
+    business = normalize_business_profile(raw_business)
+    return build_claude_agent_prompt(build_site_plan(business), Path(target_path))

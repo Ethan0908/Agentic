@@ -1,0 +1,35 @@
+{
+  "hero": {
+    "split-panel": "Large editorial headline with right-side service summary panel.",
+    "urgent-conversion": "Phone-first emergency layout with high-contrast CTA and fast proof strip.",
+    "calm-authority": "Reassuring service layout with softer proof and appointment-oriented CTA.",
+    "authority-editorial": "Professional, text-led authority layout with decision criteria.",
+    "gallery-bento": "Boutique layout with large hero card and bento-style highlights.",
+    "saas-bento": "Modern product-style hero with bento proof and compact feature cards."
+  },
+  "proof": {
+    "trust-strip": "Short proof points across a horizontal strip.",
+    "bento-proof": "Proof points arranged in asymmetrical bento cards.",
+    "phone-proof": "Emergency proof row emphasizing availability path and contact speed without inventing guarantees."
+  },
+  "services": {
+    "cards": "Four to six cards with short descriptions.",
+    "clustered": "Grouped service clusters for businesses with many services.",
+    "checklist": "Dense checklist for urgent or utility services."
+  },
+  "process": {
+    "three-step": "Simple contact-to-completion timeline.",
+    "consultative": "Discovery, recommendation, action path.",
+    "rapid-response": "Call, diagnose, dispatch/next step. Only use if emergency intent is known."
+  },
+  "proofOrExpectation": {
+    "reviews": "Use only supplied testimonials.",
+    "expectations": "Use process expectations when reviews are missing."
+  },
+  "finalCta": {
+    "quote": "Quote request CTA.",
+    "call": "Phone-first CTA.",
+    "booking": "Appointment/scheduling CTA.",
+    "consultation": "Professional consultation CTA."
+  }
+}

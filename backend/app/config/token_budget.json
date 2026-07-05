@@ -1,0 +1,24 @@
+{
+  "default": {
+    "briefMaxChars": 2200,
+    "designPlanMaxChars": 1800,
+    "copyPlanMaxChars": 2400,
+    "qaReportMaxChars": 1800,
+    "agentPromptMaxChars": 5000
+  },
+  "agentModels": {
+    "business-profiler": "haiku",
+    "conversion-strategist": "haiku",
+    "brand-director": "sonnet",
+    "copy-polisher": "haiku",
+    "frontend-refiner": "sonnet",
+    "visual-qa": "sonnet"
+  },
+  "principles": [
+    "Do not send full files to every agent.",
+    "Pass compact JSON briefs and paths instead of pasted code when possible.",
+    "Use Haiku for classification, copy triage, and simple strategy.",
+    "Use Sonnet only for visual design, frontend refactor, and QA repair.",
+    "Persist site-plan.json so later agents read one compact source of truth."
+  ]
+}

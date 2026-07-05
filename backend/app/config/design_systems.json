@@ -1,0 +1,92 @@
+{
+  "premium-local-service": {
+    "label": "Premium Local Service",
+    "bestFor": ["plumbing", "hvac", "electrician", "roofing", "cleaning", "repair", "contractor", "home service"],
+    "layoutPattern": "split-panel",
+    "visualLanguage": "warm editorial, high trust, soft contrast, refined cards",
+    "tokens": {
+      "bg": "#f5f1eb",
+      "ink": "#15110d",
+      "muted": "#6f655b",
+      "surface": "rgba(255, 255, 255, 0.74)",
+      "surfaceStrong": "#ffffff",
+      "accent": "#9b5f2b",
+      "accentDark": "#5b3318"
+    }
+  },
+  "emergency-response": {
+    "label": "Emergency Response",
+    "bestFor": ["emergency", "sewer", "water damage", "locksmith", "towing", "restoration", "urgent"],
+    "layoutPattern": "urgent-conversion",
+    "visualLanguage": "direct, bold, high contrast, phone-first, low friction",
+    "tokens": {
+      "bg": "#0f1115",
+      "ink": "#f8f4ec",
+      "muted": "#c7beb1",
+      "surface": "rgba(255, 255, 255, 0.08)",
+      "surfaceStrong": "#171a21",
+      "accent": "#ffb454",
+      "accentDark": "#f97316"
+    }
+  },
+  "clinical-trust": {
+    "label": "Clinical Trust",
+    "bestFor": ["medical", "dental", "clinic", "therapy", "health", "wellness", "doctor", "chiropractor"],
+    "layoutPattern": "calm-authority",
+    "visualLanguage": "bright, calm, precise, accessible, reassurance-led",
+    "tokens": {
+      "bg": "#eef7f5",
+      "ink": "#10231f",
+      "muted": "#60716d",
+      "surface": "rgba(255, 255, 255, 0.78)",
+      "surfaceStrong": "#ffffff",
+      "accent": "#2f8f83",
+      "accentDark": "#145f56"
+    }
+  },
+  "professional-advisory": {
+    "label": "Professional Advisory",
+    "bestFor": ["law", "legal", "accounting", "finance", "insurance", "consulting", "real estate", "mortgage"],
+    "layoutPattern": "authority-editorial",
+    "visualLanguage": "serious, composed, editorial, credibility-first",
+    "tokens": {
+      "bg": "#f4f2ee",
+      "ink": "#111827",
+      "muted": "#596273",
+      "surface": "rgba(255, 255, 255, 0.78)",
+      "surfaceStrong": "#ffffff",
+      "accent": "#6b7280",
+      "accentDark": "#1f2937"
+    }
+  },
+  "boutique-luxury": {
+    "label": "Boutique Luxury",
+    "bestFor": ["spa", "salon", "interior", "design", "photography", "wedding", "hotel", "restaurant", "catering"],
+    "layoutPattern": "gallery-bento",
+    "visualLanguage": "spacious, tasteful, high-end, image-led, soft motion-ready",
+    "tokens": {
+      "bg": "#f7f1ea",
+      "ink": "#241b16",
+      "muted": "#7c6b60",
+      "surface": "rgba(255, 255, 255, 0.7)",
+      "surfaceStrong": "#fffaf6",
+      "accent": "#b17b61",
+      "accentDark": "#6c3f31"
+    }
+  },
+  "modern-growth": {
+    "label": "Modern Growth",
+    "bestFor": ["saas", "software", "agency", "marketing", "startup", "technology", "ai", "app"],
+    "layoutPattern": "saas-bento",
+    "visualLanguage": "sharp, modern, high contrast, bento proof, product-led",
+    "tokens": {
+      "bg": "#080b12",
+      "ink": "#f6f8fb",
+      "muted": "#aab3c2",
+      "surface": "rgba(255, 255, 255, 0.075)",
+      "surfaceStrong": "#111827",
+      "accent": "#7c9cff",
+      "accentDark": "#4f46e5"
+    }
+  }
+}
