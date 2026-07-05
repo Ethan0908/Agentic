@@ -1,0 +1,56 @@
+{
+  "name": "Omakase By Tento",
+  "category": "Sushi Restaurant",
+  "city": "manhattan",
+  "address": "106 Avenue B, New York, NY 10009, USA",
+  "phone": "+1 929-507-8807",
+  "email": null,
+  "originalWebsite": "http://omakasebytento.com/",
+  "previewWebsite": null,
+  "searchKeyword": "omakase",
+  "searchLocation": "manhattan",
+  "placeTypes": [
+    "sushi_restaurant",
+    "deli",
+    "japanese_restaurant",
+    "food_store",
+    "store",
+    "restaurant",
+    "point_of_interest",
+    "food",
+    "establishment"
+  ],
+  "googlePrimaryType": "sushi_restaurant",
+  "googlePrimaryTypeDisplayName": "Sushi Restaurant",
+  "rawData": {
+    "id": "ChIJydN6X7NZwokRvX7Eazs-7Zk",
+    "types": [
+      "sushi_restaurant",
+      "deli",
+      "japanese_restaurant",
+      "food_store",
+      "store",
+      "restaurant",
+      "point_of_interest",
+      "food",
+      "establishment"
+    ],
+    "websiteUri": "http://omakasebytento.com/",
+    "displayName": {
+      "text": "Omakase By Tento",
+      "languageCode": "en"
+    },
+    "primaryType": "sushi_restaurant",
+    "googleMapsUri": "https://maps.google.com/?cid=11091589882215431869&g_mp=Cidnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaFRleHQQAhgEIAA",
+    "searchKeyword": "omakase",
+    "searchLocation": "manhattan",
+    "formattedAddress": "106 Avenue B, New York, NY 10009, USA",
+    "nationalPhoneNumber": "(929) 507-8807",
+    "classificationCategory": "Sushi Restaurant",
+    "primaryTypeDisplayName": {
+      "text": "Sushi Restaurant",
+      "languageCode": "en-US"
+    },
+    "internationalPhoneNumber": "+1 929-507-8807"
+  }
+}

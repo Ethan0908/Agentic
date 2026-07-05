@@ -1,0 +1,553 @@
+:root {
+  color-scheme: light;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #111318;
+  background: #f5f1e8;
+  --ink: #111318;
+  --muted: #5f6673;
+  --line: rgba(17, 19, 24, 0.13);
+  --panel: rgba(255, 255, 255, 0.78);
+  --panel-strong: #ffffff;
+  --accent: #d9ff3f;
+  --accent-ink: #101010;
+  --deep: #111318;
+  --soft: #f5f1e8;
+  --radius: 24px;
+  --radius-sm: 14px;
+  --shadow: 0 28px 90px rgba(25, 26, 30, 0.12);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(255, 255, 255, 0.95), transparent 32rem),
+    linear-gradient(135deg, #f5f1e8 0%, #ffffff 46%, #e9e1d4 100%);
+}
+
+a {
+  color: inherit;
+}
+
+.site {
+  width: min(1180px, calc(100vw - 32px));
+  margin: 0 auto;
+  padding: 20px 0 42px;
+}
+
+.navShell {
+  position: sticky;
+  top: 16px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px;
+  margin-bottom: 24px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 18px 70px rgba(20, 22, 28, 0.08);
+  backdrop-filter: blur(16px);
+}
+
+.brandMark,
+.navCta,
+.navLinks a,
+.button,
+.contactLine {
+  text-decoration: none;
+}
+
+.brandMark {
+  max-width: 310px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0 10px;
+  font-weight: 900;
+  letter-spacing: -0.045em;
+}
+
+.navLinks {
+  display: flex;
+  gap: 18px;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.navLinks a:hover,
+.contactLine:hover {
+  color: var(--ink);
+}
+
+.navCta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 0 16px;
+  border-radius: 999px;
+  background: var(--deep);
+  color: #fff;
+  font-weight: 800;
+}
+
+.heroShell {
+  min-height: 78vh;
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) 410px;
+  align-items: center;
+  gap: 34px;
+  padding: 60px 0 70px;
+}
+
+.heroCopy h1,
+.heroCard h2,
+.sectionIntro h2,
+.contactShell h2 {
+  margin: 0;
+  letter-spacing: -0.075em;
+  line-height: 0.94;
+}
+
+.heroCopy h1 {
+  max-width: 850px;
+  font-size: clamp(3.2rem, 8.4vw, 8.2rem);
+}
+
+.heroCard h2,
+.contactShell h2 {
+  font-size: clamp(2.4rem, 5vw, 4.8rem);
+}
+
+.sectionIntro h2 {
+  font-size: clamp(2.3rem, 5.2vw, 5.2rem);
+}
+
+.eyebrow {
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+}
+
+.subtitle {
+  max-width: 720px;
+  margin: 24px 0 0;
+  color: #3e444c;
+  font-size: clamp(1.08rem, 2vw, 1.32rem);
+  line-height: 1.62;
+}
+
+.ctaRow,
+.contactActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 30px;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  padding: 0 20px;
+  border: 1px solid var(--deep);
+  border-radius: 999px;
+  font-weight: 900;
+}
+
+.button.primary {
+  background: var(--deep);
+  color: #fff;
+}
+
+.button.secondary {
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--ink);
+}
+
+.heroMeta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.heroMeta span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.65);
+  font-size: 0.9rem;
+}
+
+.heroCard {
+  position: relative;
+  min-height: 430px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+  padding: 30px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.82), rgba(255, 255, 255, 0.52)),
+    radial-gradient(circle at top right, rgba(217, 255, 63, 0.42), transparent 18rem);
+  box-shadow: var(--shadow);
+}
+
+.heroCard::before {
+  content: "";
+  position: absolute;
+  inset: 18px;
+  border: 1px solid rgba(17, 19, 24, 0.08);
+  border-radius: calc(var(--radius) - 8px);
+  pointer-events: none;
+}
+
+.cardLabel {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  font-size: 0.74rem;
+}
+
+.contactStack {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 10px;
+}
+
+.contactLine {
+  display: block;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.contactLine.strong {
+  color: var(--ink);
+  font-size: 1.18rem;
+  font-weight: 950;
+}
+
+.trustBand {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0 0 24px;
+}
+
+.trustItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 86px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+}
+
+.trustItem span {
+  color: var(--accent-ink);
+  font-size: 0.9rem;
+}
+
+.sectionShell {
+  padding: 82px 0;
+  border-top: 1px solid var(--line);
+}
+
+.sectionSplit {
+  display: grid;
+  grid-template-columns: 0.9fr 1.25fr;
+  gap: 38px;
+}
+
+.sectionIntro p:not(.eyebrow) {
+  max-width: 560px;
+  color: var(--muted);
+  font-size: 1.06rem;
+  line-height: 1.65;
+}
+
+.sectionIntro.compact {
+  max-width: 760px;
+}
+
+.serviceGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.serviceCard,
+.processCard {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel);
+}
+
+.serviceCard {
+  min-height: 230px;
+  padding: 24px;
+  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.serviceCard:hover {
+  transform: translateY(-3px);
+  border-color: rgba(17, 19, 24, 0.3);
+  box-shadow: 0 20px 70px rgba(17, 19, 24, 0.1);
+}
+
+.serviceCard span,
+.processCard span {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 950;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.serviceCard h3,
+.processCard h3 {
+  margin: 34px 0 10px;
+  font-size: 1.45rem;
+  line-height: 1.08;
+  letter-spacing: -0.04em;
+}
+
+.serviceCard p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.processShell {
+  display: grid;
+  gap: 26px;
+}
+
+.processGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.processCard {
+  min-height: 190px;
+  padding: 24px;
+}
+
+.contactShell {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: end;
+  gap: 28px;
+  padding: 56px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--deep);
+  color: #fff;
+}
+
+.contactShell .eyebrow,
+.contactShell p {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.contactShell .button.primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+}
+
+.contactShell .button.secondary {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.26);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.footerShell {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 28px 0 0;
+  color: var(--muted);
+  font-size: 0.94rem;
+}
+
+.site.service,
+.site.rugged-blue-collar {
+  --accent: #ffcc24;
+  --soft: #f0eee8;
+  --radius: 12px;
+  --radius-sm: 8px;
+}
+
+body:has(.site.service),
+body:has(.site.rugged-blue-collar) {
+  background:
+    linear-gradient(90deg, rgba(17, 19, 24, 0.035) 1px, transparent 1px),
+    linear-gradient(180deg, #f2f0ea 0%, #ffffff 45%, #dde4eb 100%);
+  background-size: 44px 44px, auto;
+}
+
+.site.service .heroCard,
+.site.rugged-blue-collar .heroCard,
+.site.service .serviceCard,
+.site.rugged-blue-collar .serviceCard,
+.site.service .processCard,
+.site.rugged-blue-collar .processCard,
+.site.service .trustItem,
+.site.rugged-blue-collar .trustItem {
+  box-shadow: none;
+  border-color: rgba(17, 19, 24, 0.28);
+}
+
+.site.service .button.secondary,
+.site.rugged-blue-collar .button.secondary,
+.site.service .navCta,
+.site.rugged-blue-collar .navCta {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent-ink);
+}
+
+.site.service .sectionShell,
+.site.rugged-blue-collar .sectionShell {
+  border-top: 3px solid var(--ink);
+}
+
+.site.clinic,
+.site.clean-clinical {
+  --accent: #c7f7ff;
+  --deep: #10233a;
+  --soft: #f6fbff;
+}
+
+body:has(.site.clinic),
+body:has(.site.clean-clinical) {
+  background: linear-gradient(135deg, #f7fbff 0%, #ffffff 50%, #e8f3f6 100%);
+}
+
+.site.hospitality {
+  --accent: #f6b455;
+  --deep: #271913;
+  --soft: #fff5e8;
+}
+
+body:has(.site.hospitality) {
+  background: linear-gradient(135deg, #fff7ed 0%, #ffffff 48%, #ecd4bd 100%);
+}
+
+.site.lifestyle,
+.site.polished-lifestyle {
+  --accent: #ffd1e8;
+  --deep: #281822;
+  --soft: #fff5fa;
+}
+
+body:has(.site.lifestyle),
+body:has(.site.polished-lifestyle) {
+  background: linear-gradient(135deg, #fff5fa 0%, #ffffff 48%, #eadbe7 100%);
+}
+
+.site.fitness {
+  --accent: #b8ff5f;
+  --deep: #101812;
+  --soft: #f6fff0;
+}
+
+@media (max-width: 920px) {
+  .navLinks {
+    display: none;
+  }
+
+  .heroShell,
+  .sectionSplit,
+  .contactShell {
+    grid-template-columns: 1fr;
+  }
+
+  .heroShell {
+    min-height: auto;
+    padding: 44px 0 56px;
+  }
+
+  .heroCard {
+    min-height: 320px;
+  }
+
+  .trustBand,
+  .processGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .contactShell {
+    padding: 32px;
+  }
+}
+
+@media (max-width: 640px) {
+  .site {
+    width: min(100% - 24px, 1180px);
+    padding-top: 12px;
+  }
+
+  .navShell {
+    top: 8px;
+    border-radius: 18px;
+  }
+
+  .brandMark {
+    max-width: 170px;
+  }
+
+  .navCta {
+    min-height: 38px;
+    padding: 0 12px;
+    font-size: 0.85rem;
+  }
+
+  .heroCopy h1 {
+    font-size: clamp(3rem, 17vw, 5.6rem);
+  }
+
+  .serviceGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .sectionShell {
+    padding: 58px 0;
+  }
+
+  .footerShell {
+    flex-direction: column;
+  }
+}
