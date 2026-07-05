@@ -65,6 +65,18 @@ class GitHubClient:
             response.raise_for_status()
             return response.json()
 
+    async def update_repo_homepage(self, repo_name_or_full_name: str, homepage_url: str | None) -> dict:
+        if not homepage_url:
+            return await self.get_repo(repo_name_or_full_name)
+        async with httpx.AsyncClient(timeout=30) as client:
+            response = await client.patch(
+                self._repo_url(repo_name_or_full_name),
+                headers=self.headers,
+                json={"homepage": homepage_url},
+            )
+            response.raise_for_status()
+            return response.json()
+
     async def create_repo(self, repo_name: str, private: bool = True) -> dict:
         """Create or reuse a generated repo."""
         repo_name = self._codex_preferred_repo_name(repo_name)
