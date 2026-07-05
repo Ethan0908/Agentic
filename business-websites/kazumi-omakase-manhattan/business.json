@@ -1,0 +1,50 @@
+{
+  "name": "Kazumi Omakase",
+  "category": "Sushi Restaurant",
+  "city": "manhattan",
+  "address": "31 W 8th St, New York, NY 10011, USA",
+  "phone": "+1 212-849-2722",
+  "email": null,
+  "originalWebsite": "http://www.kazuminy.com/",
+  "previewWebsite": null,
+  "searchKeyword": "omakase",
+  "searchLocation": "manhattan",
+  "placeTypes": [
+    "sushi_restaurant",
+    "japanese_restaurant",
+    "restaurant",
+    "point_of_interest",
+    "food",
+    "establishment"
+  ],
+  "googlePrimaryType": "sushi_restaurant",
+  "googlePrimaryTypeDisplayName": "Sushi Restaurant",
+  "rawData": {
+    "id": "ChIJ1foP1jNZwokR7Kc8wAThdbU",
+    "types": [
+      "sushi_restaurant",
+      "japanese_restaurant",
+      "restaurant",
+      "point_of_interest",
+      "food",
+      "establishment"
+    ],
+    "websiteUri": "http://www.kazuminy.com/",
+    "displayName": {
+      "text": "Kazumi Omakase",
+      "languageCode": "en"
+    },
+    "primaryType": "sushi_restaurant",
+    "googleMapsUri": "https://maps.google.com/?cid=13075604503661422572&g_mp=Cidnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaFRleHQQAhgEIAA",
+    "searchKeyword": "omakase",
+    "searchLocation": "manhattan",
+    "formattedAddress": "31 W 8th St, New York, NY 10011, USA",
+    "nationalPhoneNumber": "(212) 849-2722",
+    "classificationCategory": "Sushi Restaurant",
+    "primaryTypeDisplayName": {
+      "text": "Sushi Restaurant",
+      "languageCode": "en-US"
+    },
+    "internationalPhoneNumber": "+1 212-849-2722"
+  }
+}
