@@ -13,6 +13,7 @@ from app.models import Business
 CODEX_OUTPUT_FILE = "codex-output.json"
 ALLOWED_REASONING_EFFORTS = {"minimal", "low", "medium", "high", "xhigh"}
 ALLOWED_VERBOSITY = {"low", "medium", "high"}
+STALE_RESTAURANT_TERMS = {"omakase", "nigiri", "sashimi", "maki", "izakaya", "ramen", "sushi"}
 
 
 def _codex_command() -> str | None:
@@ -61,7 +62,9 @@ def read_codex_output(site_dir: Path, fallback_repo_name: str) -> dict:
         "site_title": data.get("site_title"),
         "business_type": data.get("business_type"),
         "design_style": data.get("design_style"),
+        "primary_cta": data.get("primary_cta"),
         "short_description": data.get("short_description"),
+        "research_summary": data.get("research_summary"),
     }
 
 
@@ -81,21 +84,170 @@ def _add_codex_config_overrides(command: list[str]) -> None:
         command.extend(["-c", f"model_verbosity=\"{verbosity}\""])
 
 
+def _write_authoritative_business_json(site_dir: Path, business_json: dict) -> None:
+    (site_dir / "business.json").write_text(json.dumps(business_json, indent=2), encoding="utf-8")
+
+
+def _combined_site_text(site_dir: Path) -> str:
+    chunks: list[str] = []
+    allowed_suffixes = {".tsx", ".ts", ".jsx", ".js", ".json", ".css", ".html", ".md"}
+    skipped_dirs = {"node_modules", ".next", ".git", ".vercel"}
+
+    for path in site_dir.rglob("*"):
+        if not path.is_file():
+            continue
+        if any(part in skipped_dirs for part in path.parts):
+            continue
+        if path.suffix.lower() not in allowed_suffixes:
+            continue
+        try:
+            chunks.append(path.read_text(encoding="utf-8"))
+        except UnicodeDecodeError:
+            continue
+
+    return "\n".join(chunks).lower()
+
+
+def _validate_no_stale_restaurant_copy(site_dir: Path, business_json: dict) -> None:
+    context = " ".join(
+        str(business_json.get(key) or "")
+        for key in ["businessType", "category", "searchKeyword"]
+    ).lower()
+
+    sushi_allowed = any(term in context for term in ["sushi", "ramen", "izakaya", "japanese"])
+    if sushi_allowed:
+        return
+
+    text = _combined_site_text(site_dir)
+    found = sorted(term for term in STALE_RESTAURANT_TERMS if term in text)
+    if found:
+        raise RuntimeError(
+            "Generated site still contains stale sushi/omakase wording for a non-sushi business. "
+            f"Found: {', '.join(found)}. Stopped before GitHub/Vercel publish."
+        )
+
+
+def _optional_file(site_dir: Path, name: str) -> str:
+    path = site_dir / name
+    if not path.exists() or not path.is_file():
+        return ""
+    try:
+        return path.read_text(encoding="utf-8")
+    except Exception:
+        return ""
+
+
+def _codex_metadata_shape() -> str:
+    return json.dumps(
+        {
+            "repo_name": "lowercase-dash-separated-repo-name",
+            "site_title": "short public site title",
+            "business_type": "specific inferred type",
+            "design_style": "specific design style",
+            "primary_cta": "main conversion action",
+            "short_description": "one sentence summary",
+            "research_summary": "one sentence describing what research/design logic was used",
+        },
+        indent=2,
+    )
+
+
+def _build_prompt(site_dir: Path, business: Business, business_json: dict) -> str:
+    custom_instructions = _optional_file(site_dir, "codex-instructions.md").strip()
+    metadata_shape = _codex_metadata_shape()
+
+    return f"""
+You are a senior conversion-focused web designer, UX researcher, brand strategist, and Next.js frontend engineer.
+
+You are creating a custom website from scratch for exactly one real local business. Do not reuse a previous generated website. Do not reuse a sushi, omakase, restaurant, contractor, dentist, SaaS, or generic landing-page concept unless the business data actually supports that category.
+
+Business context:
+{_business_context(business, business_json)}
+
+Additional local instructions, if present:
+{custom_instructions or "No extra instruction file was provided."}
+
+Research and thinking phase:
+1. Read business.json first. Treat it as the source of truth for business name, category, business type, search keyword, city, address, phone number, email, original website, and Google Places types.
+2. Classify the business precisely. Use business name, category, search keyword, Places types, address, and original website URL. The original search keyword is strong evidence.
+3. Decide the visitor's real intent. Emergency plumbers need fast phone CTA. Dentists need trust and appointment flow. Restaurants need menu/order/location. Salons need service/booking/visual tone. Fitness businesses need program/schedule inquiry. Professional services need credibility and contact flow.
+4. If originalWebsite exists and the environment allows internet access, use it only to understand real services, tone, location, CTAs, and factual details. Do not copy text verbatim. Do not copy images.
+5. Research or infer sector-specific UX patterns: above-the-fold needs, expected sections, CTA hierarchy, trust signals, contact flow, mobile behavior, visual tone, and accessibility needs.
+6. Write research-notes.md with inferred business type, target customer, primary conversion goal, secondary conversion goal, recommended sections, visual direction, facts used, and facts not available.
+
+Design strategy:
+- Create a site that feels custom to this business, not template-generated.
+- Define the user journey, primary CTA, trust-building moments, visual system, and page architecture before coding.
+- Use a sector-specific layout and visual language.
+- Make mobile UX excellent: readable type, large tap targets, no cramped cards, clear phone/contact actions.
+- Use accessible contrast, semantic HTML, descriptive headings, keyboard-friendly links/buttons, and clean spacing.
+- Avoid generic AI/SaaS styling unless the company is actually tech.
+
+Industry rules:
+- Blue-collar/service companies: strong rectangular sections, low-radius corners, bold typography, strong phone CTA, practical service cards, service-area language, emergency/contact urgency if appropriate. Avoid bubbly SaaS styling, pastel startup cards, excessive rounded pills, fake luxury gradients, and restaurant imagery.
+- Restaurants: prioritize menu/order/location/reservation flow. Use food-appropriate warmth, but do not invent menu prices or specific dishes unless supplied. If it is not a Japanese/sushi business, do not use omakase, nigiri, sashimi, maki, ramen, izakaya, or sushi language.
+- Dental/medical/clinic: prioritize appointment CTA, trust, services, insurance/location, calm design, clean spacing. Avoid aggressive sales tone.
+- Salons/spas/beauty: prioritize booking, services, visual polish, pricing inquiry, stylist/service categories.
+- Fitness: prioritize classes/training, schedule inquiry, membership CTA, energy, location.
+- Professional/local services: prioritize credibility, clear services, contact, location, outcome-oriented copy.
+
+Copy rules:
+- Use the actual business name throughout.
+- Use actual phone, email, address, city, and original website link when available.
+- Keep claims truthful.
+- Use placeholders only when necessary, such as Call for current hours.
+- Do not write fake testimonials, fake reviews, fake awards, fake staff names, fake prices, or fake certifications.
+- Do not use the same generic headline for every company.
+
+Technical requirements:
+- Build a complete deployable Next.js app in the current folder.
+- Required files: package.json, app/layout.tsx, app/page.tsx, app/globals.css, research-notes.md, codex-output.json.
+- Add next.config.js or next.config.mjs and tsconfig.json if needed.
+- Do not add external npm packages.
+- Do not use external images. Use CSS, layout, typography, gradients, SVG shapes, and structured sections instead.
+- Do not send emails, create GitHub repos, deploy to Vercel, or modify files outside this folder.
+
+Page structure guidance:
+1. Hero: specific headline, specific subheadline, primary CTA, phone/contact CTA, location cue.
+2. Trust/value section: why this business is relevant to the visitor.
+3. Services/offers: sector-specific service cards.
+4. Process or why choose us: explain the next step.
+5. Location/contact section: phone, email, address, original website.
+6. Footer: business name, city, contact links.
+You may change this structure if your research shows a better flow for the sector.
+
+Anti-repetition rules:
+Before finishing, scan all generated text. Reject and rewrite the site if the business name is missing, the category does not match the website, stale copy from another business appears, a non-sushi business contains sushi/omakase/ramen/nigiri/sashimi/izakaya/maki language, a service business looks like a restaurant/spa/SaaS startup, service cards are generic, or the CTA is unclear.
+
+Write exactly one JSON metadata file named {CODEX_OUTPUT_FILE} in the project root with this exact shape:
+{metadata_shape}
+
+repo_name must use only lowercase letters, numbers, dashes, underscores, or dots. No spaces. No owner prefix. No slash.
+
+Final check:
+- Confirm required files exist.
+- Confirm page imports no missing packages.
+- Confirm there is no unrelated stale business copy.
+- Confirm the UI is sector-specific.
+- Confirm mobile layout is usable.
+- Confirm codex-output.json is valid JSON.
+""".strip()
+
+
 async def improve_site_with_codex(
     site_dir: Path,
     business: Business,
     business_json: dict,
     fallback_repo_name: str | None = None,
 ) -> dict:
-    """Use the logged-in Codex CLI to generate one business-specific website.
-
-    Codex edits only the generated website folder and writes codex-output.json.
-    The backend reads that metadata before creating the GitHub repo/Vercel project.
-    """
+    """Use the logged-in Codex CLI to generate one business-specific website."""
     settings = get_settings()
     fallback_repo_name = normalise_repo_name(fallback_repo_name or business.name)
 
+    _write_authoritative_business_json(site_dir, business_json)
+
     if not settings.codex_enabled:
+        _validate_no_stale_restaurant_copy(site_dir, business_json)
         metadata = read_codex_output(site_dir, fallback_repo_name)
         return {"codex_ran": False, "reason": "CODEX_ENABLED=false", **metadata}
 
@@ -110,44 +262,7 @@ async def improve_site_with_codex(
     if not site_dir.exists() or not site_dir.is_dir():
         raise FileNotFoundError(f"Generated site folder not found: {site_dir}")
 
-    prompt = f"""
-You are editing a generated Next.js business website in the current directory.
-
-Business context:
-{_business_context(business, business_json)}
-
-Task:
-- First classify the company from all available evidence: business name, Google Places category/types, original Places search keyword, city, address, phone, email, and supplied public data.
-- The original Places search keyword is strong classification evidence. If searchKeyword is "plumber", "electrician", "roofing", "HVAC", "contractor", etc., treat it as a blue-collar/service business unless the individual business data clearly contradicts it.
-- Only create a sushi/Japanese restaurant website if the name, Places category/types, or searchKeyword explicitly supports sushi, ramen, izakaya, Japanese food, or restaurant. Do not use sushi sections for unrelated companies.
-- Build the site for the exact business type. Examples:
-  - Sushi restaurant: menu highlights, dine-in/takeout, reservations, catering/party trays, location, hours placeholder, phone CTA.
-  - Dentist: appointments, dental services, emergency/cleaning/cosmetic sections, insurance/location CTAs.
-  - Blue-collar/service company: emergency/service calls, service area, repair/install sections, phone-first CTA, practical trust blocks.
-  - Salon: services, booking, stylists, location, phone/email CTA.
-- Match the visual style to business_json.designStyle and business_json.designDirection.
-- If designStyle is rugged-blue-collar, use a tougher, more rectangular design: square or small-radius corners, bold section dividers, strong phone CTA, fewer soft shadows, no bubbly/startup/SaaS look, no excessive rounded pills.
-- If designStyle is hospitality, use a warmer restaurant layout, but still avoid overusing rounded corners.
-- If designStyle is clean-clinical, use calm white space, trust-building service sections, and subtle corners.
-- Rewrite business.json so headline, subheadline, services, cta, category, businessType, designStyle, and designDirection match the inferred company type.
-- Keep every claim truthful. Use generic placeholders such as "Call for current hours" instead of inventing exact hours, awards, menu prices, staff names, or reviews.
-- Keep the site self-contained, polished, mobile-first, fast, and conversion-focused.
-- Keep calls, address/directions, email, phone, and original website link visible when available.
-- Do not add new npm packages.
-- Do not use external images that require scraping/downloading.
-- Do not send emails, create GitHub repos, deploy to Vercel, or modify files outside this folder.
-- Choose a clean GitHub/Vercel-safe repository name for this generated site, based on the business name and type/city.
-- Write exactly one JSON metadata file named {CODEX_OUTPUT_FILE} in the project root with this shape:
-  {{
-    "repo_name": "lowercase-dash-separated-repo-name",
-    "site_title": "short public site title",
-    "business_type": "inferred type such as sushi restaurant, dental clinic, blue-collar service business, salon",
-    "design_style": "rugged-blue-collar | hospitality | clean-clinical | polished-lifestyle | professional-local",
-    "short_description": "one sentence summary"
-  }}
-- The repo_name must use only lowercase letters, numbers, dashes, underscores, or dots. No spaces. No owner prefix. No slash.
-- Finish by leaving the edited files and {CODEX_OUTPUT_FILE} on disk.
-""".strip()
+    prompt = _build_prompt(site_dir, business, business_json)
 
     command = [
         codex,
@@ -175,6 +290,9 @@ Task:
             "Codex failed while improving the site. "
             f"exit={result.returncode}\nSTDOUT:\n{result.stdout[-4000:]}\nSTDERR:\n{result.stderr[-4000:]}"
         )
+
+    _write_authoritative_business_json(site_dir, business_json)
+    _validate_no_stale_restaurant_copy(site_dir, business_json)
 
     metadata = read_codex_output(site_dir, fallback_repo_name)
     return {
