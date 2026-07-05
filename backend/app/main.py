@@ -83,8 +83,6 @@ async def create_codex_generated_site(db: Session, business: Business) -> Websit
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Codex site generation failed: {exc}") from exc
 
-    # Codex chooses the repo/project name by writing codex-output.json. Fall back
-    # to the deterministic slug only if Codex did not produce metadata.
     repo_name = short_repo_name(codex_result.get("repo_name"), generated["slug"])
 
     website = Website(
@@ -118,13 +116,11 @@ async def publish_website_to_github(db: Session, business: Business, website: We
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"GitHub publish failed: {exc}") from exc
 
-    # Store the precise full_name so later Vercel deploys never have to guess the owner.
     website.github_repo_name = repo_full_name
     website.github_repo_url = repo.get("html_url")
     website.deployment_status = "GITHUB_PUBLISHED"
     log_event(db, business.id, "site.github_published", {"repo": repo_full_name, **upload})
 
-    # Best-effort central archive folder inside the configured GitHub repo.
     archive_prefix = f"{settings.github_archive_path.strip('/')}/{repo_short_name}".strip("/")
     if settings.github_archive_repo and archive_prefix:
         try:
@@ -141,7 +137,6 @@ async def publish_website_to_github(db: Session, business: Business, website: We
                 {"repo": f"{settings.github_owner}/{settings.github_archive_repo}", "path": archive_prefix, **archive_upload},
             )
         except Exception as exc:
-            # Do not block the customer's site if the central archive copy fails.
             log_event(
                 db,
                 business.id,
@@ -157,6 +152,8 @@ async def publish_website_to_github(db: Session, business: Business, website: We
 async def deploy_website_to_vercel(db: Session, business: Business, website: Website) -> Website:
     if not website.github_repo_name:
         raise HTTPException(status_code=400, detail="Publish the latest site to GitHub first")
+
+    homepage_error = None
 
     try:
         github = GitHubClient()
@@ -174,12 +171,17 @@ async def deploy_website_to_vercel(db: Session, business: Business, website: Web
             repo_id,
             ref=repo.get("default_branch", "main"),
         )
+        deployment = await vercel.wait_for_deployment_ready(deployment)
+        deployment_url = vercel.public_url_for_project(project, deployment)
+
+        if deployment_url:
+            try:
+                await github.update_repo_homepage(repo_full_name, deployment_url)
+            except Exception as exc:
+                homepage_error = str(exc)
+
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Vercel deployment failed: {exc}") from exc
-
-    deployment_url = deployment.get("url")
-    if deployment_url and not deployment_url.startswith("http"):
-        deployment_url = f"https://{deployment_url}"
 
     website.vercel_project_id = project.get("id") or project.get("name") or short_repo_name(website.github_repo_name)
     website.vercel_url = deployment_url
@@ -189,7 +191,13 @@ async def deploy_website_to_vercel(db: Session, business: Business, website: Web
         db,
         business.id,
         "site.vercel_deployed",
-        {"project": project.get("name"), "deployment_id": deployment.get("id"), "url": deployment_url},
+        {
+            "project": project.get("name"),
+            "deployment_id": deployment.get("id"),
+            "url": deployment_url,
+            "github_homepage_updated": homepage_error is None,
+            "github_homepage_error": homepage_error,
+        },
     )
     db.commit()
     db.refresh(website)
@@ -267,7 +275,6 @@ async def discover_businesses(payload: DiscoverRequest, db: Session = Depends(ge
         if normalised["place_id"]:
             existing = db.scalar(select(Business).where(Business.place_id == normalised["place_id"]))
             if existing:
-                # Keep old leads useful if the first crawl had weak/null category data.
                 if not existing.category:
                     existing.category = normalised.get("category")
                 if existing.raw_data:
@@ -338,21 +345,19 @@ def validate_emails(business_id: int, db: Session = Depends(get_db)) -> list[Con
 
     log_event(db, business.id, "email.validated", {"count": len(business.contacts)})
     db.commit()
-    for contact in business.contacts:
+    for contact in contacts:
         db.refresh(contact)
     return business.contacts
 
 
 @app.post("/businesses/{business_id}/build-site", response_model=WebsiteOut)
 async def build_site(business_id: int, db: Session = Depends(get_db)) -> Website:
-    """One-click website path: Codex build + GitHub publish + Vercel deploy."""
     business = get_business_or_404(db, business_id)
     return await build_publish_deploy_pipeline(db, business)
 
 
 @app.post("/businesses/{business_id}/generate-site-only", response_model=WebsiteOut)
 async def generate_site_only(business_id: int, db: Session = Depends(get_db)) -> Website:
-    """Developer/debug path only. The dashboard should not use this."""
     business = get_business_or_404(db, business_id)
     return await create_codex_generated_site(db, business)
 
@@ -375,6 +380,93 @@ async def deploy_latest_site_vercel(business_id: int, db: Session = Depends(get_
 async def build_publish_deploy_site(business_id: int, db: Session = Depends(get_db)) -> Website:
     business = get_business_or_404(db, business_id)
     return await build_publish_deploy_pipeline(db, business)
+
+
+@app.post("/businesses/{business_id}/delete-latest-site", response_model=WebsiteOut)
+async def delete_latest_site(business_id: int, db: Session = Depends(get_db)) -> Website:
+    business = get_business_or_404(db, business_id)
+    website = db.scalar(
+        select(Website)
+        .where(
+            Website.business_id == business_id,
+            Website.deleted_at.is_(None),
+            Website.deployment_status != "DELETED",
+        )
+        .order_by(Website.created_at.desc())
+    )
+    if not website:
+        website = get_latest_website_or_404(db, business_id)
+
+    result: dict = {
+        "website_id": website.id,
+        "github_repo_name": website.github_repo_name,
+        "github_repo_url": website.github_repo_url,
+        "vercel_project_id": website.vercel_project_id,
+        "vercel_url": website.vercel_url,
+    }
+
+    vercel_candidates: list[str] = []
+    if website.vercel_project_id:
+        vercel_candidates.append(website.vercel_project_id)
+    if website.github_repo_name:
+        vercel_candidates.append(short_repo_name(website.github_repo_name))
+    if website.vercel_url:
+        host = website.vercel_url.replace("https://", "").replace("http://", "").split("/", 1)[0]
+        if host.endswith(".vercel.app"):
+            vercel_candidates.append(host.removesuffix(".vercel.app"))
+
+    seen_vercel: set[str] = set()
+    for candidate in vercel_candidates:
+        if not candidate or candidate in seen_vercel:
+            continue
+        seen_vercel.add(candidate)
+        try:
+            await VercelClient().delete_project(candidate)
+            result["vercel_deleted_as"] = candidate
+            break
+        except Exception as exc:
+            error = str(exc)
+            result.setdefault("vercel_delete_errors", []).append({candidate: error})
+            if "404" in error or "not found" in error.lower():
+                result.setdefault("vercel_already_missing", []).append(candidate)
+                continue
+
+    github_candidates: list[str] = []
+    if website.github_repo_name:
+        github_candidates.append(website.github_repo_name)
+    if website.github_repo_url and "github.com/" in website.github_repo_url:
+        parsed = website.github_repo_url.split("github.com/", 1)[1].strip("/").split("/")
+        if len(parsed) >= 2:
+            github_candidates.append(f"{parsed[0]}/{parsed[1]}")
+
+    seen_github: set[str] = set()
+    for candidate in github_candidates:
+        if not candidate or candidate in seen_github:
+            continue
+        seen_github.add(candidate)
+        try:
+            await GitHubClient().delete_repo(candidate)
+            result["github_deleted_as"] = candidate
+            break
+        except Exception as exc:
+            error = str(exc)
+            result.setdefault("github_delete_errors", []).append({candidate: error})
+            if "404" in error or "not found" in error.lower():
+                result.setdefault("github_already_missing", []).append(candidate)
+                continue
+
+    website.deployment_status = "DELETED"
+    website.delete_pending = False
+    website.deleted_at = datetime.now(UTC)
+    website.vercel_url = None
+    website.github_repo_url = None
+    website.vercel_project_id = None
+    business.status = LeadStatus.DELETED
+
+    log_event(db, business.id, "site.deleted", result)
+    db.commit()
+    db.refresh(website)
+    return website
 
 
 @app.get("/businesses/{business_id}/contacts", response_model=list[ContactOut])
