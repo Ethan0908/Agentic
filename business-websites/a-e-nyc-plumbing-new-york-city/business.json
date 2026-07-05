@@ -1,0 +1,55 @@
+{
+  "company": {
+    "id": 12,
+    "name": "A&E NYC Plumbing",
+    "industry_hint": "Plumber",
+    "search_keyword": "plumber",
+    "search_location": "new york city",
+    "city": "new york city",
+    "address": "40 Fulton St, New York, NY 10038, USA",
+    "phone": "+1 646-392-7164",
+    "email": null,
+    "original_website": "https://www.topplumbernyc.com/",
+    "source": "google_places"
+  },
+  "places_data": {
+    "place_id": "ChIJafVqcRZbwokRDZJ3sGV-uls",
+    "google_primary_type": "plumber",
+    "google_primary_type_display": {
+      "text": "Plumber",
+      "languageCode": "en-US"
+    },
+    "google_types": [
+      "plumber",
+      "service",
+      "point_of_interest",
+      "establishment"
+    ],
+    "google_maps_url": "https://maps.google.com/?cid=6609734378337047053&g_mp=Cidnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaFRleHQQAhgEIAA",
+    "formatted_address": "40 Fulton St, New York, NY 10038, USA",
+    "national_phone": "(646) 392-7164",
+    "international_phone": "+1 646-392-7164",
+    "website_uri": "https://www.topplumbernyc.com/"
+  },
+  "extra_research": {},
+  "generation_contract": {
+    "purpose": "Give Codex company data and let Codex decide the website strategy.",
+    "minimum_structure": [
+      "intro",
+      "body",
+      "supporting sections",
+      "offerings only if relevant",
+      "contact or conversion section"
+    ],
+    "rules": [
+      "Do not use a fixed template.",
+      "Do not reuse a previous generated website concept.",
+      "Do not force any single industry.",
+      "Codex decides the company type, tone, layout, and sections from the data.",
+      "Use only facts present in business.json, GENERATION_PROMPT.md, or extra_research.",
+      "Do not invent exact hours, prices, awards, staff names, reviews, guarantees, certifications, or product details.",
+      "If information is missing, use safe wording such as Contact us for details or Call for current information.",
+      "The final page should feel custom to this exact company."
+    ]
+  }
+}
