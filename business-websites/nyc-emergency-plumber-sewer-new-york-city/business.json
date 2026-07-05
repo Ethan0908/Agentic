@@ -1,0 +1,31 @@
+{
+  "name": "NYC Emergency Plumber & Sewer",
+  "category": "Plumber",
+  "businessType": "plumbing service",
+  "designStyle": "rugged-blue-collar",
+  "designDirection": "Blue-collar layout: strong blocky sections, square or low-radius corners, bold contact CTA, practical service cards, no soft startup/SaaS look.",
+  "searchKeyword": "plumber",
+  "searchLocation": "new york city",
+  "placeTypes": [
+    "plumber",
+    "service",
+    "point_of_interest",
+    "establishment"
+  ],
+  "googlePrimaryType": "plumber",
+  "city": "new york city",
+  "phone": "+1 332-900-3335",
+  "email": null,
+  "address": "17 Cleveland Pl, New York, NY 10012, USA",
+  "originalWebsite": null,
+  "previewWebsite": null,
+  "headline": "Reliable plumbing help from NYC Emergency Plumber & Sewer",
+  "subheadline": "A direct service-business site focused on urgent calls, clear service areas, and customer confidence in new york city.",
+  "services": [
+    "Emergency plumbing calls",
+    "Drain and leak troubleshooting",
+    "Water heater help",
+    "Residential service visits"
+  ],
+  "cta": "Call for plumbing service"
+}
