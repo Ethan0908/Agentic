@@ -168,7 +168,7 @@ export default function Home() {
               <h2>Practical {business.businessType} support for {business.serviceArea}.</h2>
             </div>
             <p>
-              Each service is framed around the details customers actually need: what is happening, what comes next, and how to move forward without confusion.
+              Tell the team what is happening, where the work is needed, and the timing. The response can start with the right context instead of a long back-and-forth.
             </p>
           </div>
 
@@ -190,7 +190,7 @@ export default function Home() {
             <p className="eyebrow">Service standard</p>
             <h2>Clear communication before the work starts.</h2>
             <p>
-              Good service is not only the final result. It is also the way the request is handled, scoped, explained, and followed through. {business.name} keeps the experience focused on practical next steps.
+              Good service is not only the final result. It is also how the request is handled, scoped, explained, and followed through. {business.name} keeps the experience focused on practical next steps.
             </p>
             <a className="text-link" href={ctaHref}>Start with a clear request →</a>
           </div>
@@ -203,13 +203,13 @@ export default function Home() {
             </article>
             <article>
               <span>02</span>
-              <h3>No fake proof</h3>
-              <p>The site only uses claims and reviews that are actually supplied.</p>
+              <h3>Straight answers</h3>
+              <p>The next step is explained in plain language, whether that means a quote path, visit, booking, or recommendation.</p>
             </article>
             <article>
               <span>03</span>
               <h3>Local context</h3>
-              <p>The page stays connected to {business.serviceArea} and the service being requested.</p>
+              <p>The service path stays connected to {business.serviceArea} and the work being requested.</p>
             </article>
           </div>
         </section>
@@ -243,7 +243,7 @@ export default function Home() {
               <h2>{reviews.length ? 'What customers say.' : 'What customers can expect.'}</h2>
             </div>
             <p>
-              Visitors should see a reason to act without being asked to trust vague claims.
+              Visitors get the information they need before choosing the next step.
             </p>
           </div>
 
@@ -260,7 +260,7 @@ export default function Home() {
             <div className="expectation-card">
               <h3>{business.guarantee}</h3>
               <p>
-                If reviews, awards, or licences are not provided in the source data, the page uses grounded expectations instead of making up credibility.
+                Share the service needed, the location, preferred timing, and any photos or details that make the request easier to understand.
               </p>
             </div>
           )}
