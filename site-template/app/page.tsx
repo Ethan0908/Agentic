@@ -1,4 +1,7 @@
+import type { CSSProperties } from 'react';
 import business from '../data/business.json';
+import design from '../data/design.json';
+import sections from '../data/sections.json';
 
 type Service = {
   title: string;
@@ -41,12 +44,61 @@ function faqList(): Faq[] {
   return business.faqs || [];
 }
 
+function themeVars(): CSSProperties {
+  return {
+    '--bg': design.tokens.bg,
+    '--ink': design.tokens.ink,
+    '--muted': design.tokens.muted,
+    '--surface': design.tokens.surface,
+    '--surface-strong': design.tokens.surfaceStrong,
+    '--accent': design.tokens.accent,
+    '--accent-dark': design.tokens.accentDark,
+  } as CSSProperties;
+}
+
+function panelTitle() {
+  if (sections.intent.emergency) return 'Built for fast decisions.';
+  if (sections.intent.professional) return 'Built around confidence.';
+  if (sections.intent.appointment) return 'Built around a clear appointment path.';
+  return 'Built around a clear next step.';
+}
+
+function panelTopline() {
+  if (sections.intent.emergency) return 'Priority contact path';
+  if (sections.intent.professional) return 'Decision confidence';
+  if (sections.intent.appointment) return 'Appointment flow';
+  return 'Premium service flow';
+}
+
+function processLabels() {
+  if (sections.processVariant === 'rapid-response') {
+    return [
+      ['01', 'Contact', 'Make the request with location, timing, and the problem.'],
+      ['02', 'Assess', 'The issue is scoped so the next step is clear.'],
+      ['03', 'Act', 'The work moves forward with direct communication.'],
+    ];
+  }
+  if (sections.processVariant === 'consultative') {
+    return [
+      ['01', 'Discovery', 'Share goals, constraints, and relevant details.'],
+      ['02', 'Recommendation', 'Get a practical path based on what matters most.'],
+      ['03', 'Next step', 'Move into booking, quote, or consultation with clarity.'],
+    ];
+  }
+  return [
+    ['01', 'Scope', 'Project details are collected before the work is framed.'],
+    ['02', 'Plan', 'You get the recommended quote path, visit, or action.'],
+    ['03', 'Deliver', 'Work moves forward with calm, direct communication.'],
+  ];
+}
+
 export default function Home() {
   const ctaHref = contactHref();
   const reviews = reviewList();
+  const services = serviceList();
 
   return (
-    <main>
+    <main style={themeVars()} data-theme={design.id} data-variant={sections.heroVariant}>
       <header className="site-header">
         <a className="brand" href="#top" aria-label={`${business.name} home`}>
           <span className="brand-mark" aria-hidden="true">{business.name.slice(0, 1)}</span>
@@ -80,29 +132,21 @@ export default function Home() {
         </div>
 
         <aside className="hero-panel" aria-label="Service summary">
-          <div className="panel-topline">Premium service flow</div>
-          <h2>Built around a clear next step.</h2>
+          <div className="panel-topline">{panelTopline()}</div>
+          <h2>{panelTitle()}</h2>
           <div className="panel-grid">
-            <div>
-              <span>01</span>
-              <strong>Scope</strong>
-              <p>Project details are collected before the work is framed.</p>
-            </div>
-            <div>
-              <span>02</span>
-              <strong>Plan</strong>
-              <p>You get the recommended quote path, visit, or action.</p>
-            </div>
-            <div>
-              <span>03</span>
-              <strong>Deliver</strong>
-              <p>Work moves forward with calm, direct communication.</p>
-            </div>
+            {processLabels().map(([number, title, description]) => (
+              <div key={title}>
+                <span>{number}</span>
+                <strong>{title}</strong>
+                <p>{description}</p>
+              </div>
+            ))}
           </div>
         </aside>
       </section>
 
-      <section className="proof-strip" aria-label="Business proof points">
+      <section className={`proof-strip proof-${sections.proofVariant}`} aria-label="Business proof points">
         {business.proofPoints.slice(0, 4).map((point) => (
           <div key={point}>
             <span>✓</span>
@@ -116,11 +160,11 @@ export default function Home() {
           <p className="eyebrow">Services</p>
           <h2>Focused {business.businessType} help for real customer needs.</h2>
           <p>
-            The page stays specific, simple, and action-oriented so visitors understand what to do next without reading a wall of text.
+            Clear sections help visitors understand what is offered, why it matters, and what to do next.
           </p>
         </div>
-        <div className="card-grid">
-          {serviceList().map((service) => (
+        <div className={`card-grid services-${sections.servicesVariant}`}>
+          {services.map((service) => (
             <article className="service-card" key={service.title}>
               <span aria-hidden="true" />
               <h3>{service.title}</h3>
@@ -132,7 +176,7 @@ export default function Home() {
 
       <section className="section-pad decision-section">
         <div>
-          <p className="eyebrow">Why it converts</p>
+          <p className="eyebrow">Why it works</p>
           <h2>Trust is built through clarity, not louder claims.</h2>
         </div>
         <div className="decision-grid">
@@ -146,7 +190,7 @@ export default function Home() {
           </article>
           <article>
             <h3>Proof without fake hype</h3>
-            <p>The page uses provided reviews and concrete process promises instead of invented awards.</p>
+            <p>The page uses supplied reviews or concrete process expectations instead of invented awards.</p>
           </article>
         </div>
       </section>
@@ -156,7 +200,7 @@ export default function Home() {
           <p className="eyebrow">Process</p>
           <h2>What happens after someone contacts {business.name}.</h2>
         </div>
-        <div className="timeline">
+        <div className={`timeline process-${sections.processVariant}`}>
           {business.processSteps.map((step, index) => (
             <article key={step.title}>
               <span>{String(index + 1).padStart(2, '0')}</span>
@@ -185,7 +229,7 @@ export default function Home() {
           <div className="expectation-card">
             <h3>{business.guarantee}</h3>
             <p>
-              Thin lead data should not create fake credibility. This template replaces missing reviews with clear expectations and a straightforward next step.
+              When proof is missing, the page should create confidence through process clarity, specific service details, and a clear contact path.
             </p>
           </div>
         )}
@@ -206,7 +250,7 @@ export default function Home() {
         </div>
       </section>
 
-      <section id="contact" className="final-cta section-pad">
+      <section id="contact" className={`final-cta section-pad final-${sections.finalCtaVariant}`}>
         <p className="eyebrow">Ready when you are</p>
         <h2>{business.offer}</h2>
         <p>Send the details once. Get a clear response about the right next step.</p>
