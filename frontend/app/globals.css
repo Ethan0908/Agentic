@@ -33,6 +33,13 @@ button:disabled {
   cursor: not-allowed;
 }
 
+button.danger,
+.floatingActions button.danger {
+  background: #8f1d1d;
+  border-color: #8f1d1d;
+  color: #fff;
+}
+
 input {
   width: 100%;
   border: 1px solid #d2cabf;
@@ -49,7 +56,7 @@ a {
 .page {
   width: min(1180px, calc(100vw - 32px));
   margin: 0 auto;
-  padding: 32px 0 64px;
+  padding: 32px 0 140px;
 }
 
 .hero {
@@ -139,6 +146,18 @@ td span,
   align-items: center;
 }
 
+.inlineControls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.inlineControls button {
+  background: transparent;
+  color: #161616;
+  padding: 0.55rem 0.7rem;
+}
+
 .statusGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -157,6 +176,21 @@ td span,
 
 .message {
   margin-bottom: 0;
+}
+
+.queueLog {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid #ded7cc;
+  border-radius: 0.9rem;
+  background: #fffaf2;
+  max-height: 160px;
+  overflow: auto;
+}
+
+.queueLog p {
+  margin: 0 0 6px;
+  font-size: 0.9rem;
 }
 
 .tableWrap {
@@ -181,6 +215,50 @@ td span {
   display: block;
 }
 
+.selectCol {
+  width: 56px;
+  text-align: center;
+}
+
+.selectedRow {
+  background: rgba(22, 22, 22, 0.035);
+}
+
+.checkWrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid #161616;
+  border-radius: 0.7rem;
+  cursor: pointer;
+  background: #fff;
+}
+
+.checkWrap input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.checkWrap span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: transparent;
+  font-weight: 900;
+}
+
+.checkWrap input:checked + span {
+  background: #161616;
+  color: #fff;
+  border-radius: 0.6rem;
+}
+
 code {
   font-size: 0.78rem;
   background: #eee8dd;
@@ -188,15 +266,37 @@ code {
   border-radius: 0.5rem;
 }
 
-.actions {
+.floatingActions {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 30;
   display: flex;
+  align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
+  max-width: min(980px, calc(100vw - 44px));
+  padding: 10px;
+  border: 1px solid rgba(22, 22, 22, 0.18);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 18px 70px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(12px);
+  overflow-x: auto;
 }
 
-.actions button {
+.floatingActions button {
+  white-space: nowrap;
+  padding: 0.7rem 0.85rem;
+  border-radius: 0.75rem;
+}
+
+.selectionSummary {
+  white-space: nowrap;
+  font-size: 0.86rem;
+  font-weight: 800;
   padding: 0.55rem 0.65rem;
-  border-radius: 0.65rem;
+  border-radius: 0.7rem;
+  background: #eee8dd;
 }
 
 @media (max-width: 850px) {
@@ -212,5 +312,11 @@ code {
 
   .statusBox {
     min-width: unset;
+  }
+
+  .floatingActions {
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
   }
 }
