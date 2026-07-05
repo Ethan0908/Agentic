@@ -1,9 +1,12 @@
 {
   "name": "Bond's Plumbing & Electric",
   "category": "Electrician",
-  "businessType": "plumbing service",
-  "designStyle": "rugged-blue-collar",
-  "designDirection": "Blue-collar layout: strong blocky sections, square or low-radius corners, bold contact CTA, practical service cards, no soft startup/SaaS look.",
+  "city": "new york city",
+  "address": "94a Spring St, New York, NY 10012, USA",
+  "phone": "+1 718-701-3826",
+  "email": null,
+  "originalWebsite": "https://www.bondsplumbingelectric.com/",
+  "previewWebsite": null,
   "searchKeyword": "plumber",
   "searchLocation": "new york city",
   "placeTypes": [
@@ -14,19 +17,31 @@
     "establishment"
   ],
   "googlePrimaryType": "electrician",
-  "city": "new york city",
-  "phone": "+1 718-701-3826",
-  "email": null,
-  "address": "94a Spring St, New York, NY 10012, USA",
-  "originalWebsite": "https://www.bondsplumbingelectric.com/",
-  "previewWebsite": null,
-  "headline": "Reliable plumbing help from Bond's Plumbing & Electric",
-  "subheadline": "A direct service-business site focused on urgent calls, clear service areas, and customer confidence in new york city.",
-  "services": [
-    "Emergency plumbing calls",
-    "Drain and leak troubleshooting",
-    "Water heater help",
-    "Residential service visits"
-  ],
-  "cta": "Call for plumbing service"
+  "googlePrimaryTypeDisplayName": "Electrician",
+  "rawData": {
+    "id": "ChIJ54zUy_Wqw4kRHR6N1_yNjx8",
+    "types": [
+      "electrician",
+      "plumber",
+      "service",
+      "point_of_interest",
+      "establishment"
+    ],
+    "websiteUri": "https://www.bondsplumbingelectric.com/",
+    "displayName": {
+      "text": "Bond's Plumbing & Electric",
+      "languageCode": "en"
+    },
+    "primaryType": "electrician",
+    "googleMapsUri": "https://maps.google.com/?cid=2274192453933014557&g_mp=Cidnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaFRleHQQAhgEIAA",
+    "searchKeyword": "plumber",
+    "searchLocation": "new york city",
+    "formattedAddress": "94a Spring St, New York, NY 10012, USA",
+    "nationalPhoneNumber": "(718) 701-3826",
+    "primaryTypeDisplayName": {
+      "text": "Electrician",
+      "languageCode": "en-US"
+    },
+    "internationalPhoneNumber": "+1 718-701-3826"
+  }
 }
