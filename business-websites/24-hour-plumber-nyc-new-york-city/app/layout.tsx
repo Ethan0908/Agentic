@@ -1,13 +1,25 @@
-import type { Metadata } from "next";
 import "./globals.css";
-import data from "../business.json";
+import type { Metadata } from "next";
+import business from "../business.json";
 
-const company = data.company;
-const places = data.places_data;
+type BusinessMetadata = {
+  name?: string | null;
+  category?: string | null;
+  city?: string | null;
+  searchKeyword?: string | null;
+  subheadline?: string | null;
+};
+
+const data = business as BusinessMetadata;
+const title = data.name || "Generated Business Website";
+const description =
+  data.subheadline ||
+  [data.category, data.searchKeyword, data.city].filter(Boolean).join(" · ") ||
+  "A generated local business website.";
 
 export const metadata: Metadata = {
-  title: `${company.name} | New York City Plumber`,
-  description: `${company.name} is a plumber listing in New York City. Call ${places.national_phone} for current availability and service details.`,
+  title,
+  description,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
