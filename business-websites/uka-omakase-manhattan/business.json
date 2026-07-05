@@ -1,0 +1,50 @@
+{
+  "name": "Uka Omakase",
+  "category": "Sushi Restaurant",
+  "city": "manhattan",
+  "address": "238 E 60th St, New York, NY 10022, USA",
+  "phone": "+1 347-496-7355",
+  "email": null,
+  "originalWebsite": "http://ukaomakase.com/",
+  "previewWebsite": null,
+  "searchKeyword": "omakase",
+  "searchLocation": "manhattan",
+  "placeTypes": [
+    "sushi_restaurant",
+    "japanese_restaurant",
+    "restaurant",
+    "point_of_interest",
+    "food",
+    "establishment"
+  ],
+  "googlePrimaryType": "sushi_restaurant",
+  "googlePrimaryTypeDisplayName": "Sushi Restaurant",
+  "rawData": {
+    "id": "ChIJldVrs9lZwokRfhzV-CTUW4w",
+    "types": [
+      "sushi_restaurant",
+      "japanese_restaurant",
+      "restaurant",
+      "point_of_interest",
+      "food",
+      "establishment"
+    ],
+    "websiteUri": "http://ukaomakase.com/",
+    "displayName": {
+      "text": "Uka Omakase",
+      "languageCode": "en"
+    },
+    "primaryType": "sushi_restaurant",
+    "googleMapsUri": "https://maps.google.com/?cid=10113910643449207934&g_mp=Cidnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaFRleHQQAhgEIAA",
+    "searchKeyword": "omakase",
+    "searchLocation": "manhattan",
+    "formattedAddress": "238 E 60th St, New York, NY 10022, USA",
+    "nationalPhoneNumber": "(347) 496-7355",
+    "classificationCategory": "Sushi Restaurant",
+    "primaryTypeDisplayName": {
+      "text": "Sushi Restaurant",
+      "languageCode": "en-US"
+    },
+    "internationalPhoneNumber": "+1 347-496-7355"
+  }
+}
