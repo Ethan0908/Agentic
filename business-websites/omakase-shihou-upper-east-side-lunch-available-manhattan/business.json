@@ -1,0 +1,50 @@
+{
+  "name": "Omakase Shihou - Upper East Side (Lunch Available)",
+  "category": "Japanese Restaurant",
+  "city": "manhattan",
+  "address": "1586 2nd Ave, New York, NY 10028, USA",
+  "phone": "+1 212-980-1299",
+  "email": null,
+  "originalWebsite": "https://www.shihoueast.nyc/",
+  "previewWebsite": null,
+  "searchKeyword": "omakase",
+  "searchLocation": "manhattan",
+  "placeTypes": [
+    "japanese_restaurant",
+    "sushi_restaurant",
+    "restaurant",
+    "point_of_interest",
+    "food",
+    "establishment"
+  ],
+  "googlePrimaryType": "japanese_restaurant",
+  "googlePrimaryTypeDisplayName": "Japanese Restaurant",
+  "rawData": {
+    "id": "ChIJhfeQa0xZwokR0OgwrbFEyBQ",
+    "types": [
+      "japanese_restaurant",
+      "sushi_restaurant",
+      "restaurant",
+      "point_of_interest",
+      "food",
+      "establishment"
+    ],
+    "websiteUri": "https://www.shihoueast.nyc/",
+    "displayName": {
+      "text": "Omakase Shihou - Upper East Side (Lunch Available)",
+      "languageCode": "en"
+    },
+    "primaryType": "japanese_restaurant",
+    "googleMapsUri": "https://maps.google.com/?cid=1497522406006253776&g_mp=Cidnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaFRleHQQAhgEIAA",
+    "searchKeyword": "omakase",
+    "searchLocation": "manhattan",
+    "formattedAddress": "1586 2nd Ave, New York, NY 10028, USA",
+    "nationalPhoneNumber": "(212) 980-1299",
+    "classificationCategory": "Japanese Restaurant",
+    "primaryTypeDisplayName": {
+      "text": "Japanese Restaurant",
+      "languageCode": "en-US"
+    },
+    "internationalPhoneNumber": "+1 212-980-1299"
+  }
+}
