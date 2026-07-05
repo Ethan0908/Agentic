@@ -1,0 +1,61 @@
+{
+  "name": "Plumbing NYC",
+  "category": "Plumber",
+  "city": "new york city",
+  "address": "510 W 45th St Apt 11g, New York, NY 10036, USA",
+  "phone": "+1 646-580-7524",
+  "email": null,
+  "originalWebsite": "https://plumbingnyc.com/",
+  "previewWebsite": null,
+  "searchKeyword": "plumber",
+  "searchLocation": "new york city",
+  "placeTypes": [
+    "plumber",
+    "building_materials_store",
+    "manufacturer",
+    "government_office",
+    "general_contractor",
+    "service",
+    "home_goods_store",
+    "store",
+    "point_of_interest",
+    "supplier",
+    "food",
+    "establishment"
+  ],
+  "googlePrimaryType": "plumber",
+  "googlePrimaryTypeDisplayName": "Plumber",
+  "rawData": {
+    "id": "ChIJ8cC2B8FZwokRsYomuk814m4",
+    "types": [
+      "plumber",
+      "building_materials_store",
+      "manufacturer",
+      "government_office",
+      "general_contractor",
+      "service",
+      "home_goods_store",
+      "store",
+      "point_of_interest",
+      "supplier",
+      "food",
+      "establishment"
+    ],
+    "websiteUri": "https://plumbingnyc.com/",
+    "displayName": {
+      "text": "Plumbing NYC",
+      "languageCode": "en"
+    },
+    "primaryType": "plumber",
+    "googleMapsUri": "https://maps.google.com/?cid=7990007305450457777&g_mp=Cidnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaFRleHQQAhgEIAA",
+    "searchKeyword": "plumber",
+    "searchLocation": "new york city",
+    "formattedAddress": "510 W 45th St Apt 11g, New York, NY 10036, USA",
+    "nationalPhoneNumber": "(646) 580-7524",
+    "primaryTypeDisplayName": {
+      "text": "Plumber",
+      "languageCode": "en-US"
+    },
+    "internationalPhoneNumber": "+1 646-580-7524"
+  }
+}
