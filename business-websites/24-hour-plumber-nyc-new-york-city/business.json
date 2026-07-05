@@ -1,0 +1,56 @@
+{
+  "company": {
+    "id": 15,
+    "name": "24 Hour Plumber NYC",
+    "industry_hint": "Plumber",
+    "search_keyword": "plumber",
+    "search_location": "new york city",
+    "city": "new york city",
+    "address": "101 Lexington Ave, New York, NY 10016, USA",
+    "phone": "+1 646-693-6598",
+    "email": null,
+    "original_website": "http://24hourplumber.nyc/",
+    "source": "google_places"
+  },
+  "places_data": {
+    "place_id": "ChIJq1Wf0AlZwokRpyiQCZWKqmI",
+    "google_primary_type": "plumber",
+    "google_primary_type_display": {
+      "text": "Plumber",
+      "languageCode": "en-US"
+    },
+    "google_types": [
+      "plumber",
+      "general_contractor",
+      "service",
+      "point_of_interest",
+      "establishment"
+    ],
+    "google_maps_url": "https://maps.google.com/?cid=7109647334472951975&g_mp=Cidnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaFRleHQQAhgEIAA",
+    "formatted_address": "101 Lexington Ave, New York, NY 10016, USA",
+    "national_phone": "(646) 693-6598",
+    "international_phone": "+1 646-693-6598",
+    "website_uri": "http://24hourplumber.nyc/"
+  },
+  "extra_research": {},
+  "generation_contract": {
+    "purpose": "Give Codex company data and let Codex decide the website strategy.",
+    "minimum_structure": [
+      "intro",
+      "body",
+      "supporting sections",
+      "offerings only if relevant",
+      "contact or conversion section"
+    ],
+    "rules": [
+      "Do not use a fixed template.",
+      "Do not reuse a previous generated website concept.",
+      "Do not force any single industry.",
+      "Codex decides the company type, tone, layout, and sections from the data.",
+      "Use only facts present in business.json, GENERATION_PROMPT.md, or extra_research.",
+      "Do not invent exact hours, prices, awards, staff names, reviews, guarantees, certifications, or product details.",
+      "If information is missing, use safe wording such as Contact us for details or Call for current information.",
+      "The final page should feel custom to this exact company."
+    ]
+  }
+}
