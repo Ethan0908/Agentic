@@ -23,8 +23,10 @@ from typing import Any, Mapping
 
 try:
     from .agentic_site_builder import build_claude_agent_prompt, build_site_plan, run_claude_refinement, write_site_plan
+    from .env_loader import load_local_env
 except ImportError:  # pragma: no cover - lets this file run as a direct script during local debugging.
     from agentic_site_builder import build_claude_agent_prompt, build_site_plan, run_claude_refinement, write_site_plan
+    from env_loader import load_local_env
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -223,13 +225,14 @@ def build_codex_instruction(raw_business: Mapping[str, Any]) -> str:
 def run_codex_refinement(site_path: Path, instruction: str, codex_command: str = "codex") -> None:
     """Optionally run Codex inside a generated site folder.
 
-    Keep this as a separate explicit step so the system still works without Codex.
+    `.env` and `.env.local` are loaded and forwarded to the Codex subprocess, so
+    local OAuth/API variables can be used without hardcoding secrets.
     """
 
     if not site_path.exists():
         raise SiteGenerationError(f"Cannot refine missing site path: {site_path}")
 
-    subprocess.run([codex_command, "exec", instruction], cwd=site_path, check=True, text=True)
+    subprocess.run([codex_command, "exec", instruction], cwd=site_path, check=True, text=True, env=load_local_env())
 
 
 def generate_site(

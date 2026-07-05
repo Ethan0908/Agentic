@@ -14,6 +14,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
 
+try:
+    from .env_loader import load_local_env
+except ImportError:  # pragma: no cover - lets this file run as a direct script during local debugging.
+    from env_loader import load_local_env
+
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 CONFIG_DIR = REPO_ROOT / "backend" / "app" / "config"
@@ -224,8 +229,9 @@ def run_claude_refinement(site_plan: SitePlan, target_path: Path, claude_command
 
     The repo contains `.claude/agents/` definitions. This function only launches
     Claude when the runtime has the CLI installed and the caller explicitly asks
-    for it, so deterministic generation still works without Claude.
+    for it. `.env` and `.env.local` are forwarded to the subprocess so local
+    OAuth/API variables can be used without hardcoding secrets.
     """
 
     prompt = build_claude_agent_prompt(site_plan, target_path)
-    subprocess.run([claude_command, "-p", prompt], cwd=REPO_ROOT, check=True, text=True)
+    subprocess.run([claude_command, "-p", prompt], cwd=REPO_ROOT, check=True, text=True, env=load_local_env())
