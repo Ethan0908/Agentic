@@ -29,6 +29,28 @@ type BusinessPhoto = {
   source?: string;
 };
 
+type StandardCard = {
+  title: string;
+  description: string;
+};
+
+type PageCopy = {
+  panelLabel?: string;
+  panelHeading?: string;
+  servicesEyebrow?: string;
+  servicesHeading?: string;
+  servicesIntro?: string;
+  standardEyebrow?: string;
+  standardHeading?: string;
+  standardBody?: string;
+  standardLink?: string;
+  standardCards?: StandardCard[];
+  processHeading?: string;
+  processIntro?: string;
+  confidenceHeading?: string;
+  confidenceIntro?: string;
+};
+
 function phoneHref(phone?: string) {
   if (!phone) return '#contact';
   return `tel:${phone.replace(/[^+\d]/g, '')}`;
@@ -37,6 +59,7 @@ function phoneHref(phone?: string) {
 function contactHref() {
   if (business.phone) return phoneHref(business.phone);
   if (business.email) return `mailto:${business.email}`;
+  if (business.website) return business.website;
   return '#contact';
 }
 
@@ -66,6 +89,25 @@ function photoAlt(photo: BusinessPhoto, fallback: string) {
   return photo.alt || photo.caption || fallback;
 }
 
+function copy(): PageCopy {
+  return (business.pageCopy || {}) as PageCopy;
+}
+
+function copyText(key: keyof PageCopy, fallback: string) {
+  const value = copy()[key];
+  return typeof value === 'string' && value.trim() ? value : fallback;
+}
+
+function standardCards(): StandardCard[] {
+  const cards = copy().standardCards;
+  if (Array.isArray(cards) && cards.length) return cards.slice(0, 3);
+  return [
+    { title: 'Clear next step', description: 'Visitors know exactly what to send, ask, or book after reading the page.' },
+    { title: 'Specific details', description: 'The page answers practical questions instead of relying on vague marketing language.' },
+    { title: 'Easy contact', description: 'The primary CTA stays visible and connected to the available contact method.' },
+  ];
+}
+
 function themeVars(): CSSProperties {
   return {
     '--bg': design.tokens.bg,
@@ -79,20 +121,33 @@ function themeVars(): CSSProperties {
 }
 
 function panelHeading() {
-  if (sections.intent.emergency) return 'A direct path when the issue cannot wait.';
-  if (sections.intent.professional) return 'A clearer way to choose your next step.';
-  if (sections.intent.appointment) return 'A calm path from question to appointment.';
-  return 'Clear scope, practical next steps, and careful follow-through.';
+  const fallback = (() => {
+    if (sections.intent.emergency) return 'A direct path when the issue cannot wait.';
+    if (sections.intent.professional) return 'A clearer way to choose your next step.';
+    if (sections.intent.appointment) return 'A calm path from question to appointment.';
+    return 'Clear scope, practical next steps, and careful follow-through.';
+  })();
+  return copyText('panelHeading', fallback);
 }
 
 function panelLabel() {
-  if (sections.intent.emergency) return 'Urgent request flow';
-  if (sections.intent.professional) return 'Advisory flow';
-  if (sections.intent.appointment) return 'Appointment flow';
-  return 'Service flow';
+  const fallback = (() => {
+    if (sections.intent.emergency) return 'Urgent request flow';
+    if (sections.intent.professional) return 'Advisory flow';
+    if (sections.intent.appointment) return 'Appointment flow';
+    return 'Service flow';
+  })();
+  return copyText('panelLabel', fallback);
 }
 
 function processLabels() {
+  if (sections.intent.restaurant) {
+    return [
+      ['01', 'Occasion', 'Share preferred timing, party size, and any dining details that matter.'],
+      ['02', 'Inquiry', 'The request moves into the right reservation or private-dining path.'],
+      ['03', 'Visit', 'Guests understand the experience and key details before arrival.'],
+    ];
+  }
   if (sections.processVariant === 'rapid-response') {
     return [
       ['01', 'Request', 'Share the location, timing, and the problem so the request can be understood quickly.'],
@@ -117,6 +172,7 @@ function processLabels() {
 function actionSubtext() {
   if (business.phone) return `Call or request service across ${business.serviceArea}.`;
   if (business.email) return `Send details to ${business.email} and get the next step.`;
+  if (business.website) return `Continue to ${business.name}'s website for the next step.`;
   return `Send a short request for ${business.businessType} in ${business.serviceArea}.`;
 }
 
@@ -128,9 +184,10 @@ export default function Home() {
   const photos = photoList();
   const mainPhoto = heroPhoto(photos);
   const galleryPhotos = photos.filter((photo) => photo.url !== mainPhoto?.url).slice(0, 4);
+  const cards = standardCards();
 
   return (
-    <main style={themeVars()} data-theme={design.id} data-variant={sections.heroVariant} data-has-photos={photos.length ? 'true' : 'false'}>
+    <main style={themeVars()} data-theme={design.id} data-variant={sections.heroVariant} data-has-photos={photos.length ? 'true' : 'false'} data-vertical={business.vertical}>
       <div className="page-shell">
         <header className="site-header">
           <a className="brand" href="#top" aria-label={`${business.name} home`}>
@@ -209,12 +266,10 @@ export default function Home() {
         <section id="services" className="section-pad services-section">
           <div className="section-heading-row">
             <div>
-              <p className="eyebrow">Services</p>
-              <h2>Practical {business.businessType} support for {business.serviceArea}.</h2>
+              <p className="eyebrow">{copyText('servicesEyebrow', 'Services')}</p>
+              <h2>{copyText('servicesHeading', `Practical ${business.businessType} support for ${business.serviceArea}.`)}</h2>
             </div>
-            <p>
-              Tell the team what is happening, where the work is needed, and the timing. The response can start with the right context instead of a long back-and-forth.
-            </p>
+            <p>{copyText('servicesIntro', 'Tell the team what is happening, where the work is needed, and the timing. The response can start with the right context instead of a long back-and-forth.')}</p>
           </div>
 
           <div className={`service-bento services-${sections.servicesVariant}`}>
@@ -232,30 +287,20 @@ export default function Home() {
 
         <section id="standard" className="section-pad standard-section">
           <div className="standard-main">
-            <p className="eyebrow">Service standard</p>
-            <h2>Clear communication before the work starts.</h2>
-            <p>
-              Good service is not only the final result. It is also how the request is handled, scoped, explained, and followed through. {business.name} keeps the experience focused on practical next steps.
-            </p>
-            <a className="text-link" href={ctaHref}>Start with a clear request →</a>
+            <p className="eyebrow">{copyText('standardEyebrow', 'Service standard')}</p>
+            <h2>{copyText('standardHeading', 'Clear communication before the work starts.')}</h2>
+            <p>{copyText('standardBody', `Good service is not only the final result. It is also how the request is handled, scoped, explained, and followed through. ${business.name} keeps the experience focused on practical next steps.`)}</p>
+            <a className="text-link" href={ctaHref}>{copyText('standardLink', 'Start with a clear request →')}</a>
           </div>
 
           <div className="standard-list">
-            <article>
-              <span>01</span>
-              <h3>Scope first</h3>
-              <p>The request is understood before expectations are set.</p>
-            </article>
-            <article>
-              <span>02</span>
-              <h3>Straight answers</h3>
-              <p>The next step is explained in plain language, whether that means a quote path, visit, booking, or recommendation.</p>
-            </article>
-            <article>
-              <span>03</span>
-              <h3>Local context</h3>
-              <p>The service path stays connected to {business.serviceArea} and the work being requested.</p>
-            </article>
+            {cards.map((card, index) => (
+              <article key={card.title}>
+                <span>{String(index + 1).padStart(2, '0')}</span>
+                <h3>{card.title}</h3>
+                <p>{card.description}</p>
+              </article>
+            ))}
           </div>
         </section>
 
@@ -263,11 +308,9 @@ export default function Home() {
           <div className="section-heading-row compact">
             <div>
               <p className="eyebrow">Process</p>
-              <h2>From first request to a defined next step.</h2>
+              <h2>{copyText('processHeading', 'From first request to a defined next step.')}</h2>
             </div>
-            <p>
-              A simple process helps visitors act without guessing what information to send or what happens after contact.
-            </p>
+            <p>{copyText('processIntro', 'A simple process helps visitors act without guessing what information to send or what happens after contact.')}</p>
           </div>
 
           <div className={`timeline process-${sections.processVariant}`}>
@@ -285,11 +328,9 @@ export default function Home() {
           <div className="section-heading-row compact">
             <div>
               <p className="eyebrow">Confidence</p>
-              <h2>{reviews.length ? 'What customers say.' : 'What customers can expect.'}</h2>
+              <h2>{reviews.length ? 'What customers say.' : copyText('confidenceHeading', 'What customers can expect.')}</h2>
             </div>
-            <p>
-              Visitors get the information they need before choosing the next step.
-            </p>
+            <p>{copyText('confidenceIntro', 'Visitors get the information they need before choosing the next step.')}</p>
           </div>
 
           {reviews.length ? (
@@ -340,6 +381,7 @@ export default function Home() {
               <a className="button primary" href={ctaHref}>{business.primaryCta}</a>
               {business.phone ? <a className="button secondary" href={phoneHref(business.phone)}>Call {business.phone}</a> : null}
               {!business.phone && business.email ? <a className="button secondary" href={`mailto:${business.email}`}>{business.email}</a> : null}
+              {!business.phone && !business.email && business.website ? <a className="button secondary" href={business.website}>Open website</a> : null}
             </div>
           </div>
         </section>
