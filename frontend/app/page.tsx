@@ -5,34 +5,12 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 type ClientStatus = 'lead' | 'queued' | 'generating' | 'generated' | 'emailed' | 'error';
 type ViewMode = 'finder' | 'sheet' | 'ui';
 
-type ClientRecord = {
-  id: string;
-  name: string;
-  businessType: string;
-  city: string;
-  serviceArea: string;
-  website: string;
-  email: string;
-  phone: string;
-  notes: string;
-  photos: string[];
-  status: ClientStatus;
-  error?: string;
-  generatedSitePath?: string;
-  createdAt: string;
-  updatedAt: string;
-};
+type ClientRecord = { id: string; name: string; businessType: string; city: string; serviceArea: string; website: string; email: string; phone: string; notes: string; photos: string[]; status: ClientStatus; error?: string; generatedSitePath?: string; createdAt: string; updatedAt: string };
 
 const EMPTY = { name: '', businessType: '', city: '', serviceArea: '', website: '', email: '', phone: '', notes: '', photos: '' };
 const STATUS_LABELS: Record<ClientStatus, string> = { lead: 'Lead', queued: 'Queued', generating: 'Generating', generated: 'Generated', emailed: 'Emailed', error: 'Error' };
-
-function splitPhotos(value: string) {
-  return value.split(/\n|,/).map((item) => item.trim()).filter(Boolean);
-}
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat('en-CA', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(value));
-}
+const splitPhotos = (v: string) => v.split(/\n|,/).map((x) => x.trim()).filter(Boolean);
+const formatDate = (v: string) => new Intl.DateTimeFormat('en-CA', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(v));
 
 export default function Home() {
   const [clients, setClients] = useState<ClientRecord[]>([]);
@@ -40,200 +18,41 @@ export default function Home() {
   const [finder, setFinder] = useState({ query: '', location: '', limit: '20' });
   const [view, setView] = useState<ViewMode>('sheet');
   const [search, setSearch] = useState('');
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [finding, setFinding] = useState(false);
-  const [generatingId, setGeneratingId] = useState('');
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
-    if (!q) return clients;
-    return clients.filter((client) => [client.name, client.businessType, client.city, client.serviceArea, client.website, client.email, client.phone, client.notes, client.status].join(' ').toLowerCase().includes(q));
+    return q ? clients.filter((c) => [c.name, c.businessType, c.city, c.serviceArea, c.website, c.email, c.phone, c.notes, c.status].join(' ').toLowerCase().includes(q)) : clients;
   }, [clients, search]);
+  const selected = useMemo(() => clients.filter((c) => selectedIds.includes(c.id)), [clients, selectedIds]);
+  const targets = selected.length ? selected : filtered;
+  const counts = useMemo(() => ({ total: clients.length, lead: clients.filter((c) => c.status === 'lead').length, queued: clients.filter((c) => c.status === 'queued').length, generating: clients.filter((c) => c.status === 'generating').length, generated: clients.filter((c) => c.status === 'generated').length, error: clients.filter((c) => c.status === 'error').length }), [clients]);
+  const visibleIds = filtered.map((c) => c.id);
+  const allVisibleSelected = visibleIds.length > 0 && visibleIds.every((id) => selectedIds.includes(id));
 
-  const counts = useMemo(() => ({
-    total: clients.length,
-    lead: clients.filter((client) => client.status === 'lead').length,
-    queued: clients.filter((client) => client.status === 'queued').length,
-    generating: clients.filter((client) => client.status === 'generating').length,
-    generated: clients.filter((client) => client.status === 'generated').length,
-    error: clients.filter((client) => client.status === 'error').length,
-  }), [clients]);
+  async function loadClients() { setLoading(true); const r = await fetch('/api/clients', { cache: 'no-store' }); const p = await r.json(); setClients(p.clients || []); setLoading(false); }
+  useEffect(() => { loadClients().catch((e) => { setError(e instanceof Error ? e.message : 'Unable to load clients.'); setLoading(false); }); }, []);
+  function toggle(id: string) { setSelectedIds((x) => x.includes(id) ? x.filter((y) => y !== id) : [...x, id]); }
+  function toggleVisible() { setSelectedIds((x) => allVisibleSelected ? x.filter((id) => !visibleIds.includes(id)) : Array.from(new Set([...x, ...visibleIds]))); }
 
-  async function loadClients() {
-    setLoading(true);
-    const response = await fetch('/api/clients', { cache: 'no-store' });
-    const payload = await response.json();
-    setClients(payload.clients || []);
-    setLoading(false);
-  }
+  async function createClient(e: FormEvent<HTMLFormElement>) { e.preventDefault(); setSaving(true); setError(''); const r = await fetch('/api/clients', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, photos: splitPhotos(form.photos) }) }); const p = await r.json(); if (!r.ok) setError(p.error || 'Unable to create client.'); else { setClients((x) => [p.client, ...x]); setForm(EMPTY); setView('sheet'); } setSaving(false); }
+  async function runLeadFinder(e: FormEvent<HTMLFormElement>) { e.preventDefault(); setFinding(true); setError(''); const r = await fetch('/api/lead-finder', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(finder) }); const p = await r.json(); if (!r.ok) setError(p.error || 'Lead finder failed.'); else { await loadClients(); setView('sheet'); } setFinding(false); }
+  async function patch(id: string, body: Partial<ClientRecord>) { const r = await fetch(`/api/clients/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); const p = await r.json(); if (!r.ok) throw new Error(p.error || 'Update failed.'); if (p.client) setClients((x) => x.map((c) => c.id === id ? p.client : c)); }
+  async function generateOne(id: string) { const r = await fetch('/api/generate-site', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) }); const p = await r.json(); if (p.client) setClients((x) => x.map((c) => c.id === id ? p.client : c)); if (!r.ok) throw new Error(p.error || 'Generation failed.'); }
+  async function runBatch(kind: 'generate' | 'email' | 'remove') { if (!targets.length) return; setBusy(true); setError(''); try { if (kind === 'generate') { for (const c of targets) await patch(c.id, { status: 'queued', error: '' }); for (const c of targets) await generateOne(c.id); } if (kind === 'email') { for (const c of targets) await patch(c.id, { status: 'emailed' }); } if (kind === 'remove') { for (const c of targets) await fetch(`/api/clients/${c.id}`, { method: 'DELETE' }); setClients((x) => x.filter((c) => !targets.some((t) => t.id === c.id))); setSelectedIds((x) => x.filter((id) => !targets.some((t) => t.id === id))); } } catch (e) { setError(e instanceof Error ? e.message : 'Action failed.'); } setBusy(false); }
 
-  useEffect(() => {
-    loadClients().catch((err) => {
-      setError(err instanceof Error ? err.message : 'Unable to load clients.');
-      setLoading(false);
-    });
-  }, []);
-
-  async function createClient(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setSaving(true);
-    setError('');
-    const response = await fetch('/api/clients', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form, photos: splitPhotos(form.photos) }),
-    });
-    const payload = await response.json();
-    if (!response.ok) setError(payload.error || 'Unable to create client.');
-    else {
-      setClients((current) => [payload.client, ...current]);
-      setForm(EMPTY);
-      setView('sheet');
-    }
-    setSaving(false);
-  }
-
-  async function runLeadFinder(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setFinding(true);
-    setError('');
-    const response = await fetch('/api/lead-finder', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(finder),
-    });
-    const payload = await response.json();
-    if (!response.ok) setError(payload.error || 'Lead finder failed.');
-    else {
-      await loadClients();
-      setView('sheet');
-    }
-    setFinding(false);
-  }
-
-  async function generateClient(client: ClientRecord) {
-    setGeneratingId(client.id);
-    setError('');
-    setClients((current) => current.map((item) => item.id === client.id ? { ...item, status: 'generating', error: '' } : item));
-    const response = await fetch('/api/generate-site', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: client.id }),
-    });
-    const payload = await response.json();
-    if (payload.client) setClients((current) => current.map((item) => item.id === client.id ? payload.client : item));
-    if (!response.ok) setError(payload.error || 'Site generation failed.');
-    setGeneratingId('');
-  }
-
-  async function setStatus(client: ClientRecord, status: ClientStatus) {
-    const response = await fetch(`/api/clients/${client.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status }),
-    });
-    const payload = await response.json();
-    if (response.ok) setClients((current) => current.map((item) => item.id === client.id ? payload.client : item));
-  }
-
-  async function removeClient(client: ClientRecord) {
-    const response = await fetch(`/api/clients/${client.id}`, { method: 'DELETE' });
-    if (response.ok) setClients((current) => current.filter((item) => item.id !== client.id));
-  }
-
-  return (
-    <main className="shell">
-      <section className="topbar">
-        <div className="tabs">
-          <button className={view === 'finder' ? 'active' : ''} onClick={() => setView('finder')}>Lead Finder</button>
-          <button className={view === 'sheet' ? 'active' : ''} onClick={() => setView('sheet')}>Spreadsheet</button>
-          <button className={view === 'ui' ? 'active' : ''} onClick={() => setView('ui')}>UI Cards</button>
-        </div>
-        <div className="toolbar">
-          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search leads..." />
-          <button className="ghost" onClick={loadClients} disabled={loading}>{loading ? 'Loading…' : 'Reload'}</button>
-        </div>
-      </section>
-
-      <section className="stats compact">
-        <article><strong>{counts.total}</strong><span>Total</span></article>
-        <article><strong>{counts.lead}</strong><span>Leads</span></article>
-        <article><strong>{counts.queued}</strong><span>Queued</span></article>
-        <article><strong>{counts.generating}</strong><span>Generating</span></article>
-        <article><strong>{counts.generated}</strong><span>Generated</span></article>
-        <article><strong>{counts.error}</strong><span>Errors</span></article>
-      </section>
-
-      {error ? <p className="error banner">{error}</p> : null}
-
-      {view === 'finder' ? (
-        <section className="grid">
-          <form className="panel form" onSubmit={runLeadFinder}>
-            <div><p className="eyebrow">Automatic lead finder</p><h2>Find leads</h2></div>
-            <label>Business / niche<input value={finder.query} onChange={(event) => setFinder({ ...finder, query: event.target.value })} placeholder="omakase restaurants, emergency plumbers..." /></label>
-            <label>Location<input value={finder.location} onChange={(event) => setFinder({ ...finder, location: event.target.value })} placeholder="New York, Manhattan..." /></label>
-            <label>Limit<input value={finder.limit} onChange={(event) => setFinder({ ...finder, limit: event.target.value })} /></label>
-            <button type="submit" disabled={finding}>{finding ? 'Finding…' : 'Run Lead Finder'}</button>
-            <p className="notes">Uses LEAD_FINDER_COMMAND on the Pi and imports JSON leads into the spreadsheet.</p>
-          </form>
-
-          <form className="panel form" onSubmit={createClient}>
-            <div><p className="eyebrow">Manual add</p><h2>Add one lead</h2></div>
-            <label>Business name<input value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} required /></label>
-            <label>Business type<input value={form.businessType} onChange={(event) => setForm({ ...form, businessType: event.target.value })} /></label>
-            <div className="two-col"><label>City<input value={form.city} onChange={(event) => setForm({ ...form, city: event.target.value })} /></label><label>Service area<input value={form.serviceArea} onChange={(event) => setForm({ ...form, serviceArea: event.target.value })} /></label></div>
-            <label>Website<input value={form.website} onChange={(event) => setForm({ ...form, website: event.target.value })} /></label>
-            <div className="two-col"><label>Email<input value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} /></label><label>Phone<input value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} /></label></div>
-            <label>Photo URLs<textarea value={form.photos} onChange={(event) => setForm({ ...form, photos: event.target.value })} /></label>
-            <label>Notes<textarea value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} /></label>
-            <button type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save Lead'}</button>
-          </form>
-        </section>
-      ) : null}
-
-      {view === 'sheet' ? (
-        <section className="panel sheet-panel">
-          <div className="list-heading"><div><p className="eyebrow">Lead sheet</p><h2>Spreadsheet tracker</h2></div><button className="ghost" onClick={loadClients}>Refresh</button></div>
-          <div className="table-wrap">
-            <table>
-              <thead><tr><th>Status</th><th>Business</th><th>Type</th><th>Area</th><th>Website</th><th>Contact</th><th>Photos</th><th>Updated</th><th>Actions</th></tr></thead>
-              <tbody>
-                {filtered.map((client) => (
-                  <tr key={client.id}>
-                    <td><span className={`status ${client.status}`}>{STATUS_LABELS[client.status]}</span></td>
-                    <td><strong>{client.name}</strong>{client.generatedSitePath ? <small>{client.generatedSitePath}</small> : null}{client.error ? <small className="error">{client.error}</small> : null}</td>
-                    <td>{client.businessType || '—'}</td>
-                    <td>{client.serviceArea || client.city || '—'}</td>
-                    <td>{client.website ? <a href={client.website} target="_blank" rel="noreferrer">Open</a> : '—'}</td>
-                    <td>{client.email || client.phone || '—'}</td>
-                    <td>{client.photos.length}</td>
-                    <td>{formatDate(client.updatedAt)}</td>
-                    <td className="row-actions"><button onClick={() => generateClient(client)} disabled={generatingId === client.id || client.status === 'generating'}>{generatingId === client.id || client.status === 'generating' ? 'Generating…' : 'Generate'}</button><button onClick={() => setStatus(client, 'queued')}>Queue</button><button className="danger" onClick={() => removeClient(client)}>Delete</button></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {!filtered.length ? <div className="empty-state"><h3>No matching leads.</h3><p>Run the lead finder or add a lead manually.</p></div> : null}
-        </section>
-      ) : null}
-
-      {view === 'ui' ? (
-        <section className="client-list cards-grid">
-          {filtered.map((client) => (
-            <article className="client-card" key={client.id}>
-              <div className="client-topline"><div><h3>{client.name}</h3><p>{client.businessType || 'Business type missing'} · {client.serviceArea || client.city || 'Area missing'}</p></div><span className={`status ${client.status}`}>{STATUS_LABELS[client.status]}</span></div>
-              <div className="meta-row"><span>{client.photos.length} photos</span><span>{client.website || 'No website'}</span></div>
-              {client.notes ? <p className="notes">{client.notes}</p> : null}
-              {client.generatedSitePath ? <p className="notes">Generated path: {client.generatedSitePath}</p> : null}
-              {client.error ? <p className="error">{client.error}</p> : null}
-              <div className="actions"><button onClick={() => generateClient(client)} disabled={generatingId === client.id || client.status === 'generating'}>{generatingId === client.id || client.status === 'generating' ? 'Generating…' : 'Generate Site'}</button><button onClick={() => setStatus(client, 'queued')}>Queue</button><button onClick={() => setStatus(client, 'generated')}>Mark generated</button><button className="danger" onClick={() => removeClient(client)}>Delete</button></div>
-            </article>
-          ))}
-        </section>
-      ) : null}
-    </main>
-  );
+  return <main className="shell">
+    <section className="topbar"><div className="tabs"><button className={view === 'finder' ? 'active' : ''} onClick={() => setView('finder')}>Lead Finder</button><button className={view === 'sheet' ? 'active' : ''} onClick={() => setView('sheet')}>Spreadsheet</button><button className={view === 'ui' ? 'active' : ''} onClick={() => setView('ui')}>UI Cards</button></div><div className="toolbar"><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search leads..." /><button className="ghost" onClick={loadClients} disabled={loading}>{loading ? 'Loading…' : 'Reload'}</button></div></section>
+    <section className="stats compact"><article><strong>{counts.total}</strong><span>Total</span></article><article><strong>{counts.lead}</strong><span>Leads</span></article><article><strong>{counts.queued}</strong><span>Queued</span></article><article><strong>{counts.generating}</strong><span>Generating</span></article><article><strong>{counts.generated}</strong><span>Generated</span></article><article><strong>{counts.error}</strong><span>Errors</span></article></section>
+    {error ? <p className="error banner">{error}</p> : null}
+    {view === 'finder' ? <section className="grid"><form className="panel form" onSubmit={runLeadFinder}><div><p className="eyebrow">Automatic lead finder</p><h2>Find leads</h2></div><label>Business / niche<input value={finder.query} onChange={(e) => setFinder({ ...finder, query: e.target.value })} placeholder="omakase restaurants, emergency plumbers..." /></label><label>Location<input value={finder.location} onChange={(e) => setFinder({ ...finder, location: e.target.value })} placeholder="New York, Manhattan..." /></label><label>Limit<input value={finder.limit} onChange={(e) => setFinder({ ...finder, limit: e.target.value })} /></label><button type="submit" disabled={finding}>{finding ? 'Finding…' : 'Run Lead Finder'}</button><p className="notes">Uses Google Places and imports results into the spreadsheet.</p></form><form className="panel form" onSubmit={createClient}><div><p className="eyebrow">Manual add</p><h2>Add one lead</h2></div><label>Business name<input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></label><label>Business type<input value={form.businessType} onChange={(e) => setForm({ ...form, businessType: e.target.value })} /></label><div className="two-col"><label>City<input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} /></label><label>Service area<input value={form.serviceArea} onChange={(e) => setForm({ ...form, serviceArea: e.target.value })} /></label></div><label>Website<input value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} /></label><div className="two-col"><label>Email<input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} /></label><label>Phone<input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} /></label></div><label>Photo URLs<textarea value={form.photos} onChange={(e) => setForm({ ...form, photos: e.target.value })} /></label><label>Notes<textarea value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></label><button type="submit" disabled={saving}>{saving ? 'Saving…' : 'Save Lead'}</button></form></section> : null}
+    {view === 'sheet' ? <section className="panel sheet-panel"><div className="list-heading"><div><p className="eyebrow">Lead sheet</p><h2>Spreadsheet tracker</h2></div><div className="row-actions"><button className="ghost" onClick={toggleVisible}>{allVisibleSelected ? 'Uncheck visible' : 'Check visible'}</button><button className="ghost" onClick={loadClients}>Refresh</button></div></div><div className="table-wrap"><table><thead><tr><th><input className="check" type="checkbox" checked={allVisibleSelected} onChange={toggleVisible} /></th><th>Status</th><th>Business</th><th>Type</th><th>Area</th><th>Website</th><th>Contact</th><th>Photos</th><th>Updated</th></tr></thead><tbody>{filtered.map((c) => <tr key={c.id} className={selectedIds.includes(c.id) ? 'selected-row' : ''}><td><input className="check" type="checkbox" checked={selectedIds.includes(c.id)} onChange={() => toggle(c.id)} /></td><td><span className={`status ${c.status}`}>{STATUS_LABELS[c.status]}</span></td><td><strong>{c.name}</strong>{c.generatedSitePath ? <small>{c.generatedSitePath}</small> : null}{c.error ? <small className="error">{c.error}</small> : null}</td><td>{c.businessType || '—'}</td><td>{c.serviceArea || c.city || '—'}</td><td>{c.website ? <a href={c.website} target="_blank" rel="noreferrer">Open</a> : '—'}</td><td>{c.email || c.phone || '—'}</td><td>{c.photos.length}</td><td>{formatDate(c.updatedAt)}</td></tr>)}</tbody></table></div>{!filtered.length ? <div className="empty-state"><h3>No matching leads.</h3><p>Run the lead finder or add a lead manually.</p></div> : null}</section> : null}
+    {view === 'ui' ? <section className="client-list cards-grid">{filtered.map((c) => <article className={`client-card ${selectedIds.includes(c.id) ? 'selected-card' : ''}`} key={c.id}><label className="card-check"><input className="check" type="checkbox" checked={selectedIds.includes(c.id)} onChange={() => toggle(c.id)} /> Select</label><div className="client-topline"><div><h3>{c.name}</h3><p>{c.businessType || 'Business type missing'} · {c.serviceArea || c.city || 'Area missing'}</p></div><span className={`status ${c.status}`}>{STATUS_LABELS[c.status]}</span></div><div className="meta-row"><span>{c.photos.length} photos</span><span>{c.website || 'No website'}</span></div>{c.notes ? <p className="notes">{c.notes}</p> : null}{c.generatedSitePath ? <p className="notes">Generated path: {c.generatedSitePath}</p> : null}{c.error ? <p className="error">{c.error}</p> : null}</article>)}</section> : null}
+    <div className="floating-actions"><span>{selected.length ? `${selected.length} selected` : `${filtered.length} visible`}</span><button onClick={() => runBatch('generate')} disabled={busy || !targets.length}>{busy ? 'Working…' : 'Generate'}</button><button onClick={() => runBatch('email')} disabled={busy || !targets.length}>Email</button><button className="danger" onClick={() => runBatch('remove')} disabled={busy || !targets.length}>Delete</button></div>
+  </main>;
 }
