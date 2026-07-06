@@ -1,97 +1,124 @@
-import { execFile } from 'child_process';
 import { NextResponse } from 'next/server';
 import { createClient } from '../../../lib/client-store';
 
-type RawLead = {
+type PlaceSearchResult = {
+  place_id?: string;
   name?: string;
-  businessName?: string;
-  business_type?: string;
-  businessType?: string;
-  city?: string;
-  service_area?: string;
-  serviceArea?: string;
-  website?: string;
-  url?: string;
-  email?: string;
-  phone?: string;
-  notes?: string;
-  photos?: string[];
+  formatted_address?: string;
+  types?: string[];
+  rating?: number;
+  user_ratings_total?: number;
+  photos?: { photo_reference?: string }[];
 };
 
-function splitCommand(command: string) {
-  return command.match(/(?:[^\s"]+|"[^"]*")+/g)?.map((part) => part.replace(/^"|"$/g, '')) || [];
+type PlaceDetailsResult = {
+  name?: string;
+  formatted_address?: string;
+  formatted_phone_number?: string;
+  international_phone_number?: string;
+  website?: string;
+  url?: string;
+  types?: string[];
+  rating?: number;
+  user_ratings_total?: number;
+  photos?: { photo_reference?: string }[];
+};
+
+function apiKey() {
+  return process.env.GOOGLE_PLACES_API_KEY || process.env.GOOGLE_MAPS_API_KEY || '';
 }
 
-function normalizeLead(lead: RawLead, fallbackNotes: string) {
+function text(value: unknown) {
+  return String(value || '').trim();
+}
+
+function leadType(place: PlaceSearchResult | PlaceDetailsResult, fallback: string) {
+  const types = Array.isArray(place.types) ? place.types : [];
+  const cleaned = types
+    .filter((item) => !['point_of_interest', 'establishment'].includes(item))
+    .map((item) => item.replace(/_/g, ' '));
+  return cleaned[0] || fallback;
+}
+
+function photoUrls(place: PlaceSearchResult | PlaceDetailsResult, key: string) {
+  const photos = Array.isArray(place.photos) ? place.photos : [];
+  return photos
+    .map((photo) => photo.photo_reference)
+    .filter(Boolean)
+    .slice(0, 4)
+    .map((reference) => `https://maps.googleapis.com/maps/api/place/photo?maxwidth=1400&photoreference=${encodeURIComponent(String(reference))}&key=${encodeURIComponent(key)}`);
+}
+
+async function googleJson(url: URL) {
+  const response = await fetch(url, { cache: 'no-store' });
+  const payload = await response.json();
+  if (!response.ok || (payload.status && !['OK', 'ZERO_RESULTS'].includes(payload.status))) {
+    throw new Error(payload.error_message || payload.status || 'Google Places request failed.');
+  }
+  return payload;
+}
+
+async function searchPlaces(query: string, location: string, limit: number, key: string): Promise<PlaceSearchResult[]> {
+  const url = new URL('https://maps.googleapis.com/maps/api/place/textsearch/json');
+  url.searchParams.set('query', [query, location].filter(Boolean).join(' in '));
+  url.searchParams.set('key', key);
+  const payload = await googleJson(url);
+  const results = Array.isArray(payload.results) ? payload.results : [];
+  return results.slice(0, limit);
+}
+
+async function placeDetails(placeId: string, key: string): Promise<PlaceDetailsResult> {
+  const url = new URL('https://maps.googleapis.com/maps/api/place/details/json');
+  url.searchParams.set('place_id', placeId);
+  url.searchParams.set('fields', 'name,formatted_address,formatted_phone_number,international_phone_number,website,url,types,rating,user_ratings_total,photos');
+  url.searchParams.set('key', key);
+  const payload = await googleJson(url);
+  return payload.result || {};
+}
+
+function toLead(place: PlaceSearchResult, details: PlaceDetailsResult, query: string, location: string, key: string) {
+  const merged = { ...place, ...details };
+  const rating = merged.rating ? `${merged.rating} rating` : '';
+  const reviews = merged.user_ratings_total ? `${merged.user_ratings_total} Google reviews` : '';
+  const address = text(merged.formatted_address);
+  const notes = [query, location, rating, reviews, address].filter(Boolean).join(' • ');
+
   return {
-    name: String(lead.name || lead.businessName || '').trim(),
-    businessType: String(lead.businessType || lead.business_type || '').trim(),
-    city: String(lead.city || '').trim(),
-    serviceArea: String(lead.serviceArea || lead.service_area || lead.city || '').trim(),
-    website: String(lead.website || lead.url || '').trim(),
-    email: String(lead.email || '').trim(),
-    phone: String(lead.phone || '').trim(),
-    notes: String(lead.notes || fallbackNotes || '').trim(),
-    photos: Array.isArray(lead.photos) ? lead.photos : [],
+    name: text(merged.name),
+    businessType: leadType(merged, query),
+    city: location,
+    serviceArea: location,
+    website: text(merged.website || merged.url),
+    email: '',
+    phone: text(merged.formatted_phone_number || merged.international_phone_number),
+    notes,
+    photos: photoUrls(merged, key),
     status: 'lead' as const,
   };
 }
 
-function runFinder(command: string, query: string, location: string, limit: string): Promise<RawLead[]> {
-  const parts = splitCommand(command);
-  const executable = parts[0];
-  const args = parts.slice(1);
-
-  return new Promise((resolve, reject) => {
-    if (!executable) {
-      reject(new Error('LEAD_FINDER_COMMAND is empty.'));
-      return;
-    }
-
-    const child = execFile(executable, args, {
-      env: {
-        ...process.env,
-        LEAD_FINDER_QUERY: query,
-        LEAD_FINDER_LOCATION: location,
-        LEAD_FINDER_LIMIT: limit,
-      },
-      timeout: 180000,
-      maxBuffer: 1024 * 1024 * 20,
-    }, (error, stdout, stderr) => {
-      if (error) {
-        reject(new Error(stderr || error.message));
-        return;
-      }
-      try {
-        const parsed = JSON.parse(stdout || '[]');
-        const leads = Array.isArray(parsed) ? parsed : parsed.leads;
-        resolve(Array.isArray(leads) ? leads : []);
-      } catch {
-        reject(new Error(`Lead finder returned invalid JSON: ${stdout.slice(0, 600)}`));
-      }
-    });
-
-    child.stdin?.end();
-  });
-}
-
 export async function POST(request: Request) {
   const body = await request.json();
-  const query = String(body.query || '').trim();
-  const location = String(body.location || '').trim();
-  const limit = String(body.limit || '20').trim();
-  const command = process.env.LEAD_FINDER_COMMAND || '';
+  const query = text(body.query);
+  const location = text(body.location);
+  const limit = Math.max(1, Math.min(Number(body.limit || 20) || 20, 20));
+  const key = apiKey();
 
-  if (!command) {
-    return NextResponse.json({
-      error: 'LEAD_FINDER_COMMAND is not set. Set it to your existing lead-finder script command, which should print JSON leads.',
-    }, { status: 500 });
+  if (!key) {
+    return NextResponse.json({ error: 'Google Places key is missing. Set GOOGLE_PLACES_API_KEY or GOOGLE_MAPS_API_KEY in the Pi environment.' }, { status: 500 });
   }
 
-  const rawLeads = await runFinder(command, query, location, limit);
+  if (!query) {
+    return NextResponse.json({ error: 'Enter a business type or niche to search.' }, { status: 400 });
+  }
+
+  const places = await searchPlaces(query, location, limit, key);
   const created = [];
-  for (const rawLead of rawLeads) {
-    const lead = normalizeLead(rawLead, `${query}${location ? ` in ${location}` : ''}`);
+
+  for (const place of places) {
+    if (!place.place_id) continue;
+    const details = await placeDetails(place.place_id, key);
+    const lead = toLead(place, details, query, location, key);
     if (!lead.name) continue;
     created.push(await createClient(lead));
   }
