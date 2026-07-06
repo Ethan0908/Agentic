@@ -1,8 +1,8 @@
 """Codex-first website generator.
 
-This path does not render from React templates. Python prepares a company brief,
-then Codex writes the one-page Next.js website files inside the generated site
-folder from scratch.
+Python prepares a company brief, then Codex writes the one-page Next.js website
+files inside the generated site folder from scratch. This is the path to use
+when generated sites should not come from a fixed template.
 """
 
 from __future__ import annotations
@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
+import socket
 import subprocess
 import sys
 from pathlib import Path
@@ -85,14 +86,41 @@ After creating the files, run npm run build if dependencies are installed. Fix a
 """
 
 
+def run_command(command: list[str], cwd: Path) -> None:
+    print(f"\n▶ {' '.join(command)}\n  cwd: {cwd}")
+    subprocess.run(command, cwd=cwd, check=True, text=True, env=load_local_env())
+
+
 def run_codex(target: Path, prompt: str, codex_command: str = "codex") -> None:
-    subprocess.run([codex_command, "exec", prompt], cwd=target, check=True, text=True, env=load_local_env())
+    run_command([codex_command, "exec", prompt], cwd=target)
 
 
 def verify_files(target: Path) -> None:
     missing = [name for name in REQUIRED_FILES if not (target / name).exists()]
     if missing:
         raise RuntimeError("Codex did not create required files: " + ", ".join(missing))
+
+
+def detect_lan_ip() -> str:
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.connect(("8.8.8.8", 80))
+            return sock.getsockname()[0]
+    except OSError:
+        return "<raspberry-pi-ip>"
+
+
+def post_process(target: Path, install: bool, build: bool, quality: bool) -> None:
+    if install:
+        if (target / "package-lock.json").exists():
+            run_command(["npm", "ci", "--no-audit", "--no-fund"], cwd=target)
+        else:
+            run_command(["npm", "install", "--no-audit", "--no-fund"], cwd=target)
+    if build:
+        run_command(["npm", "run", "build"], cwd=target)
+    if quality:
+        repo_root = Path(__file__).resolve().parents[3]
+        run_command([sys.executable, str(repo_root / "scripts" / "validate_site_quality.py"), str(target)], cwd=repo_root)
 
 
 def generate_site(raw_business: Mapping[str, Any], output_dir: Path | str = DEFAULT_OUTPUT_DIR, codex_command: str = "codex") -> GeneratedSite:
@@ -121,18 +149,33 @@ def main() -> int:
     parser.add_argument("profile", type=Path, help="One lead JSON file or a folder of lead JSON files.")
     parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
     parser.add_argument("--codex-command", default="codex")
+    parser.add_argument("--skip-install", action="store_true")
+    parser.add_argument("--skip-build", action="store_true")
+    parser.add_argument("--skip-quality", action="store_true")
+    parser.add_argument("--preview", action="store_true")
+    parser.add_argument("--host", default="0.0.0.0")
+    parser.add_argument("--port", default="3010")
     args = parser.parse_args()
 
     profile_path = args.profile if args.profile.is_absolute() else Path.cwd() / args.profile
     results: list[GeneratedSite] = []
     for item in load_profiles(profile_path):
         raw = json.loads(item.read_text(encoding="utf-8"))
-        results.append(generate_site(raw, output_dir=args.output_dir, codex_command=args.codex_command))
+        site = generate_site(raw, output_dir=args.output_dir, codex_command=args.codex_command)
+        post_process(site.path, install=not args.skip_install, build=not args.skip_build, quality=not args.skip_quality)
+        results.append(site)
 
     print(json.dumps([
         {"slug": site.slug, "path": str(site.path), "businessName": site.business_name, "designSystem": site.design_system}
         for site in results
     ], indent=2))
+
+    if args.preview:
+        if len(results) != 1:
+            raise RuntimeError("Preview supports exactly one lead at a time.")
+        print(f"Local URL:   http://localhost:{args.port}")
+        print(f"Network URL: http://{detect_lan_ip()}:{args.port}")
+        run_command(["npm", "run", "dev", "--", "--hostname", args.host, "--port", args.port], cwd=results[0].path)
     return 0
 
 
