@@ -3,14 +3,14 @@
 GitHub is the source of truth for this file. The Raspberry Pi should run a direct
 copy of the repository instead of keeping separate local-only generator logic.
 
-The generator no longer relies on one template and one huge prompt. It now:
-1. normalizes business data,
-2. selects a vertical-specific copy/default profile,
-3. selects a design system,
-4. creates a compact site plan,
-5. writes business/design/section JSON into the generated site,
-6. optionally launches Codex/Claude refinement,
-7. writes a deterministic quality report before the site is treated as ready.
+The generator now creates a strong baseline before Codex/Claude refinement:
+1. normalize lead data,
+2. detect the business vertical,
+3. create vertical-specific copy defaults,
+4. select a design system and section plan,
+5. render the canonical template,
+6. optionally run Codex/Claude,
+7. write a deterministic quality report before the site is treated as ready.
 """
 
 from __future__ import annotations
@@ -88,11 +88,7 @@ def _has_any(text: str, terms: tuple[str, ...]) -> bool:
 
 
 def detect_vertical(raw: Mapping[str, Any]) -> str:
-    """Map loose lead data to a copy/design vertical.
-
-    This is deterministic on purpose. Codex can still refine, but the baseline
-    must already sound like the business instead of a generic local-service page.
-    """
+    """Map loose lead data to a copy/design vertical."""
 
     text = _blob(raw)
     if _has_any(text, ("omakase", "sushi", "restaurant", "dining", "chef", "bar", "cafe", "catering", "tasting menu")):
@@ -112,119 +108,7 @@ def detect_vertical(raw: Mapping[str, Any]) -> str:
     return "local-service"
 
 
-def _page_copy_for_vertical(vertical: str, name: str, business_type: str, service_area: str) -> dict[str, Any]:
-    common_cards = [
-        {"title": "Clear next step", "description": "Visitors should know exactly what to send, ask, or book after reading the page."},
-        {"title": "Specific details", "description": "The site should answer practical questions instead of relying on vague marketing language."},
-        {"title": "Easy contact", "description": "The primary CTA stays visible and connected to the available contact method."},
-    ]
-
-    if vertical == "restaurant-hospitality":
-        return {
-            "panelLabel": "Dining path",
-            "panelHeading": "A polished path from interest to reservation.",
-            "servicesEyebrow": "Experience",
-            "servicesHeading": f"A focused {business_type} experience in {service_area}.",
-            "servicesIntro": f"The page gives guests the dining style, reservation path, and practical details they need before choosing {name}.",
-            "standardEyebrow": "Dining standard",
-            "standardHeading": "Make the visit feel considered before guests arrive.",
-            "standardBody": "A strong restaurant site sets expectations around the experience, timing, party details, and contact path without inventing menu items, ratings, or availability.",
-            "standardLink": "Start a reservation request →",
-            "standardCards": [
-                {"title": "Experience first", "description": "Guests quickly understand the style of dining and what makes the visit distinct."},
-                {"title": "Reservation clarity", "description": "The CTA guides visitors toward the next booking or inquiry step."},
-                {"title": "Useful details", "description": "Party size, timing, dietary questions, and private-event interest have a clear place to go."},
-            ],
-            "processHeading": "From interest to a confirmed dining plan.",
-            "processIntro": "A simple reservation flow reduces hesitation and keeps important dining details organized before arrival.",
-            "confidenceHeading": "What guests can expect before booking.",
-            "confidenceIntro": "The site should make the experience feel intentional while staying honest about what has been confirmed.",
-        }
-
-    if vertical == "emergency-service":
-        return {
-            "panelLabel": "Urgent request flow",
-            "panelHeading": "A direct path when the issue cannot wait.",
-            "servicesEyebrow": "Urgent services",
-            "servicesHeading": f"Fast, clear {business_type} support across {service_area}.",
-            "servicesIntro": "Visitors can identify the problem, call or send details, and understand what information helps the team respond.",
-            "standardEyebrow": "Response standard",
-            "standardHeading": "Reduce panic with a clear first step.",
-            "standardBody": "Emergency pages need direct CTAs, plain-language service cards, and no invented claims about availability, licensing, or guaranteed response times.",
-            "standardLink": "Start the urgent request →",
-            "standardCards": [
-                {"title": "Problem first", "description": "Visitors can quickly match their issue to the right request path."},
-                {"title": "Low friction", "description": "The primary contact action stays obvious on mobile and desktop."},
-                {"title": "No fake guarantees", "description": "The copy stays useful without inventing response times or credentials."},
-            ],
-            "processHeading": "From urgent issue to the next practical step.",
-            "processIntro": "The page tells people what to share so the request can be understood quickly.",
-            "confidenceHeading": "What customers can expect during the first contact.",
-            "confidenceIntro": "The focus is speed, clarity, and practical information, not exaggerated promises.",
-        }
-
-    if vertical == "professional-advisory":
-        return {
-            "panelLabel": "Advisory path",
-            "panelHeading": "A composed path from question to consultation.",
-            "servicesEyebrow": "Advisory services",
-            "servicesHeading": f"Clear {business_type} guidance for {service_area}.",
-            "servicesIntro": "The page should help prospective clients understand the advisory fit, next step, and information needed for a useful first conversation.",
-            "standardEyebrow": "Client standard",
-            "standardHeading": "Build confidence before the first conversation.",
-            "standardBody": "Professional service pages need precise language, restrained design, and credible explanations without inventing credentials, rankings, or results.",
-            "standardLink": "Request a consultation →",
-            "standardCards": [
-                {"title": "Fit first", "description": "The visitor understands whether the service area matches their situation."},
-                {"title": "Clear intake", "description": "The CTA tells clients what to send or book for a useful next step."},
-                {"title": "Credible restraint", "description": "The page avoids exaggerated outcomes and focuses on process clarity."},
-            ],
-            "processHeading": "From question to a defined consultation path.",
-            "processIntro": "The flow helps visitors share enough context for a practical next conversation.",
-            "confidenceHeading": "What clients can expect before contacting the office.",
-            "confidenceIntro": "Trust comes from specificity, restraint, and a clear first step.",
-        }
-
-    if vertical in {"clinical-wellness", "beauty-wellness"}:
-        return {
-            "panelLabel": "Appointment path",
-            "panelHeading": "A calm path from question to appointment.",
-            "servicesEyebrow": "Services",
-            "servicesHeading": f"Thoughtful {business_type} services in {service_area}.",
-            "servicesIntro": "Visitors can understand the service options, appointment path, and details worth sharing before they book.",
-            "standardEyebrow": "Care standard",
-            "standardHeading": "Make the first step feel simple and reassuring.",
-            "standardBody": "Health, wellness, and beauty sites need calm structure, accessible copy, and practical booking information without inventing clinical claims or outcomes.",
-            "standardLink": "Start an appointment request →",
-            "standardCards": [
-                {"title": "Clear fit", "description": "Visitors can identify the service that matches their goal or concern."},
-                {"title": "Comfortable booking", "description": "The CTA makes the next action feel obvious and low-pressure."},
-                {"title": "Useful preparation", "description": "The page explains what details help before the appointment."},
-            ],
-            "processHeading": "From question to appointment clarity.",
-            "processIntro": "A simple process helps people book or inquire without uncertainty.",
-            "confidenceHeading": "What clients can expect before booking.",
-            "confidenceIntro": "The site should feel calm, transparent, and specific to the service.",
-        }
-
-    if vertical == "modern-growth":
-        return {
-            "panelLabel": "Growth path",
-            "panelHeading": "A sharper path from interest to qualified lead.",
-            "servicesEyebrow": "Capabilities",
-            "servicesHeading": f"Focused {business_type} support for {service_area}.",
-            "servicesIntro": "The page should make the offer, audience, and next step immediately clear without SaaS buzzword filler.",
-            "standardEyebrow": "Execution standard",
-            "standardHeading": "Make the offer specific enough to evaluate quickly.",
-            "standardBody": "Modern growth pages need direct positioning, concrete capability cards, and a CTA that moves visitors toward a useful conversation.",
-            "standardLink": "Start the conversation →",
-            "standardCards": common_cards,
-            "processHeading": "From interest to a focused next step.",
-            "processIntro": "The flow helps visitors share the right context for a useful project or product conversation.",
-            "confidenceHeading": "What prospects can evaluate before contacting the team.",
-            "confidenceIntro": "Specificity beats buzzwords; the page should clarify the problem, offer, and contact path.",
-        }
-
+def _common_page_copy(name: str, business_type: str, service_area: str) -> dict[str, Any]:
     return {
         "panelLabel": "Service flow",
         "panelHeading": "Clear scope, practical next steps, and careful follow-through.",
@@ -235,7 +119,11 @@ def _page_copy_for_vertical(vertical: str, name: str, business_type: str, servic
         "standardHeading": "Clear communication before the work starts.",
         "standardBody": f"Good service is not only the final result. It is also how the request is handled, scoped, explained, and followed through. {name} keeps the experience focused on practical next steps.",
         "standardLink": "Start with a clear request →",
-        "standardCards": common_cards,
+        "standardCards": [
+            {"title": "Clear next step", "description": "Visitors should know exactly what to send, ask, or book after reading the page."},
+            {"title": "Specific details", "description": "The site should answer practical questions instead of relying on vague marketing language."},
+            {"title": "Easy contact", "description": "The primary CTA stays visible and connected to the available contact method."},
+        ],
         "processHeading": "From first request to a defined next step.",
         "processIntro": "A simple process helps visitors act without guessing what information to send or what happens after contact.",
         "confidenceHeading": "What customers can expect.",
@@ -244,121 +132,13 @@ def _page_copy_for_vertical(vertical: str, name: str, business_type: str, servic
 
 
 def _vertical_defaults(vertical: str, name: str, business_type: str, service_area: str) -> dict[str, Any]:
-    if vertical == "restaurant-hospitality":
-        return {
-            "primaryCta": "Request a reservation",
-            "secondaryCta": "Explore the experience",
-            "heroEyebrow": f"{business_type.title()} in {service_area}",
-            "heroHeadline": f"{name} gives {service_area} guests a more considered {business_type} experience.",
-            "heroSubheadline": "A polished page for guests to understand the dining style, ask the right questions, and take the next step toward a reservation.",
-            "services": [
-                {"title": "Omakase dining", "description": "A focused dining experience shaped around seasonality, pacing, and guest expectations."},
-                {"title": "Reservation inquiries", "description": "A direct path for guests to ask about timing, party size, and availability."},
-                {"title": "Private dining interest", "description": "A clearer way for groups to share occasion details and request the right next step."},
-                {"title": "Guest details", "description": "A practical place to raise dietary notes, timing questions, or special-occasion context before booking."},
-            ],
-            "proofPoints": [
-                "Reservation-focused contact path",
-                "Dining details clarified before arrival",
-                f"Experience presented for {service_area} guests",
-                "No fake menu claims or ratings",
-            ],
-            "processSteps": [
-                {"title": "Share the occasion", "description": "Send the preferred date, party size, and any dining details that matter."},
-                {"title": "Confirm the path", "description": "The next step can be a reservation inquiry, private-dining question, or direct contact."},
-                {"title": "Arrive with clarity", "description": "Guests understand the experience and the important details before arrival."},
-            ],
-            "faqs": [
-                {"question": f"How do I contact {name} about a reservation?", "answer": "Use the main request button to share preferred timing, party size, and contact details."},
-                {"question": "Can I ask about dietary restrictions or allergies?", "answer": "Yes. Share important dietary notes before booking so the team can explain what is possible."},
-                {"question": "Do you handle private dining or special occasions?", "answer": "Send the group size, occasion, and preferred timing so the team can confirm the right next step."},
-            ],
-            "offer": "Start with a reservation or dining inquiry that includes the details guests actually need to share.",
-            "guarantee": "A clear guest inquiry before the visit.",
-        }
+    """Return public-facing defaults for a vertical.
 
-    if vertical == "emergency-service":
-        return {
-            "primaryCta": "Call now",
-            "secondaryCta": "See urgent services",
-            "heroEyebrow": f"Urgent {business_type} in {service_area}",
-            "heroHeadline": f"{name} helps {service_area} customers take the next step when {business_type} issues cannot wait.",
-            "heroSubheadline": "A phone-first service page built around fast understanding, direct contact, and practical information.",
-            "services": [
-                {"title": "Urgent assessment", "description": "Share what happened, where it is happening, and how quickly the issue is changing."},
-                {"title": "Problem isolation", "description": "The request path focuses on the issue, location, and immediate next step."},
-                {"title": "Repair path", "description": "The page guides visitors toward the right contact action without inflated promises."},
-                {"title": "Follow-up details", "description": "Photos, access notes, and timing help the team understand the request."},
-            ],
-            "proofPoints": ["Phone-first CTA", "Issue and location captured clearly", "No fake response-time claims", f"Service context for {service_area}"],
-            "processSteps": [
-                {"title": "Call or send details", "description": "Share the location, issue, timing, and any safety concerns."},
-                {"title": "Clarify the next step", "description": "The request is sorted into the most practical response path."},
-                {"title": "Move toward resolution", "description": "The visitor understands what happens next without guessing."},
-            ],
-            "faqs": [
-                {"question": "What should I include when I contact you?", "answer": "Share the address or area, a short description, photos if useful, and whether the issue is getting worse."},
-                {"question": "Can I call instead of filling out a form?", "answer": "Yes. If a phone number is available, calling is the fastest first step for urgent issues."},
-            ],
-            "offer": "Get the urgent issue into a clear request path.",
-            "guarantee": "Clear communication before the next step is set.",
-        }
+    Internal QA language stays in `site_quality.py`; customer-facing proof points
+    must sound natural on a real business website.
+    """
 
-    if vertical == "professional-advisory":
-        return {
-            "primaryCta": "Request a consultation",
-            "secondaryCta": "Review services",
-            "heroEyebrow": f"{business_type.title()} in {service_area}",
-            "heroHeadline": f"{name} helps {service_area} clients turn complex questions into a clearer next step.",
-            "heroSubheadline": "A restrained, credible page built around fit, intake, and a practical consultation path.",
-            "services": [
-                {"title": "Initial consultation", "description": "Share the situation, goal, and timeline so the right next step can be identified."},
-                {"title": "Advisory support", "description": "A practical path for questions that need context, judgment, and clear communication."},
-                {"title": "Document or case review", "description": "Visitors can explain what they have and what they need help understanding."},
-                {"title": "Ongoing guidance", "description": "A route for clients who need continued support after the first conversation."},
-            ],
-            "proofPoints": ["Consultation-focused CTA", "Clear intake expectations", "No invented credentials or outcomes", f"Client context for {service_area}"],
-            "processSteps": [
-                {"title": "Share the question", "description": "Send the main issue, timing, and any relevant context."},
-                {"title": "Confirm fit", "description": "The next step is matched to the service area and available contact path."},
-                {"title": "Start the consultation path", "description": "Move into a conversation with clearer expectations."},
-            ],
-            "faqs": [
-                {"question": "What should I include in my inquiry?", "answer": "Share the general topic, timeline, location, and what outcome or answer you are looking for."},
-                {"question": "Does contacting the office create a client relationship?", "answer": "No. A formal relationship should only be treated as started after the business confirms it directly."},
-            ],
-            "offer": "Request a consultation path based on your situation and timing.",
-            "guarantee": "A clear first conversation path.",
-        }
-
-    if vertical in {"clinical-wellness", "beauty-wellness"}:
-        return {
-            "primaryCta": "Request an appointment",
-            "secondaryCta": "View services",
-            "heroEyebrow": f"{business_type.title()} in {service_area}",
-            "heroHeadline": f"{name} helps {service_area} clients choose the right {business_type} next step with less guesswork.",
-            "heroSubheadline": "A calm, appointment-focused page that explains services, preparation, and how to get started.",
-            "services": [
-                {"title": "Service consultation", "description": "Share the goal, concern, or preferred service so the right path can be suggested."},
-                {"title": "Appointment booking", "description": "A direct route for clients ready to ask about timing and availability."},
-                {"title": "Preparation guidance", "description": "The page explains what details are useful before a visit."},
-                {"title": "Follow-up questions", "description": "A clear place to ask practical questions before booking."},
-            ],
-            "proofPoints": ["Appointment-focused CTA", "Calm service explanation", "No invented medical or outcome claims", f"Client context for {service_area}"],
-            "processSteps": [
-                {"title": "Share your goal", "description": "Send the service interest, timing, and any details that help prepare the visit."},
-                {"title": "Confirm the appointment path", "description": "The next step can be a booking, consultation, or direct question."},
-                {"title": "Arrive prepared", "description": "Clients know what information matters before the appointment."},
-            ],
-            "faqs": [
-                {"question": "What should I share before booking?", "answer": "Send the service you are interested in, preferred timing, and any relevant questions or concerns."},
-                {"question": "Can I ask questions before making an appointment?", "answer": "Yes. Use the contact path to ask what service or appointment type makes sense."},
-            ],
-            "offer": "Request an appointment path with the details needed to get started.",
-            "guarantee": "A clear booking inquiry before the visit.",
-        }
-
-    return {
+    base = {
         "primaryCta": "Request a quote",
         "secondaryCta": "See services",
         "heroEyebrow": f"{business_type.title()} in {service_area}",
@@ -383,14 +163,161 @@ def _vertical_defaults(vertical: str, name: str, business_type: str, service_are
         ],
         "offer": "Request a practical quote path based on your project details.",
         "guarantee": "Clear communication before work begins.",
+        "pageCopy": _common_page_copy(name, business_type, service_area),
     }
+
+    if vertical == "restaurant-hospitality":
+        page_copy = _common_page_copy(name, business_type, service_area) | {
+            "panelLabel": "Dining path",
+            "panelHeading": "A polished path from interest to reservation.",
+            "servicesEyebrow": "Experience",
+            "servicesHeading": f"A focused {business_type} experience in {service_area}.",
+            "servicesIntro": f"The page gives guests the dining style, reservation path, and practical details they need before choosing {name}.",
+            "standardEyebrow": "Dining standard",
+            "standardHeading": "Make the visit feel considered before guests arrive.",
+            "standardBody": "A strong restaurant site sets expectations around the experience, timing, party details, and contact path without overpromising details that have not been provided.",
+            "standardLink": "Start a reservation request →",
+            "standardCards": [
+                {"title": "Experience first", "description": "Guests quickly understand the style of dining and what makes the visit distinct."},
+                {"title": "Reservation clarity", "description": "The CTA guides visitors toward the next booking or inquiry step."},
+                {"title": "Useful details", "description": "Party size, timing, dietary questions, and private-event interest have a clear place to go."},
+            ],
+            "processHeading": "From interest to a confirmed dining plan.",
+            "processIntro": "A simple reservation flow reduces hesitation and keeps important dining details organized before arrival.",
+            "confidenceHeading": "What guests can expect before booking.",
+            "confidenceIntro": "The site should make the experience feel intentional while staying honest about what has been confirmed.",
+        }
+        return base | {
+            "primaryCta": "Request a reservation",
+            "secondaryCta": "Explore the experience",
+            "heroHeadline": f"{name} gives {service_area} guests a more considered {business_type} experience.",
+            "heroSubheadline": "A polished page for guests to understand the dining style, ask the right questions, and take the next step toward a reservation.",
+            "services": [
+                {"title": "Omakase dining", "description": "A focused dining experience shaped around seasonality, pacing, and guest expectations."},
+                {"title": "Reservation inquiries", "description": "A direct path for guests to ask about timing, party size, and availability."},
+                {"title": "Private dining interest", "description": "A clearer way for groups to share occasion details and request the right next step."},
+                {"title": "Guest details", "description": "A practical place to raise dietary notes, timing questions, or special-occasion context before booking."},
+            ],
+            "proofPoints": ["Reservation-focused contact path", "Dining details clarified before arrival", f"Experience presented for {service_area} guests", "Honest details without inflated claims"],
+            "processSteps": [
+                {"title": "Share the occasion", "description": "Send the preferred date, party size, and any dining details that matter."},
+                {"title": "Confirm the path", "description": "The next step can be a reservation inquiry, private-dining question, or direct contact."},
+                {"title": "Arrive with clarity", "description": "Guests understand the experience and the important details before arrival."},
+            ],
+            "faqs": [
+                {"question": f"How do I contact {name} about a reservation?", "answer": "Use the main request button to share preferred timing, party size, and contact details."},
+                {"question": "Can I ask about dietary restrictions or allergies?", "answer": "Yes. Share important dietary notes before booking so the team can explain what is possible."},
+                {"question": "Do you handle private dining or special occasions?", "answer": "Send the group size, occasion, and preferred timing so the team can confirm the right next step."},
+            ],
+            "offer": "Start with a reservation or dining inquiry that includes the details guests actually need to share.",
+            "guarantee": "A clear guest inquiry before the visit.",
+            "pageCopy": page_copy,
+        }
+
+    if vertical == "emergency-service":
+        page_copy = _common_page_copy(name, business_type, service_area) | {
+            "panelLabel": "Urgent request flow",
+            "panelHeading": "A direct path when the issue cannot wait.",
+            "servicesEyebrow": "Urgent services",
+            "servicesHeading": f"Fast, clear {business_type} support across {service_area}.",
+            "servicesIntro": "Visitors can identify the problem, call or send details, and understand what information helps the team respond.",
+            "standardEyebrow": "Response standard",
+            "standardHeading": "Reduce panic with a clear first step.",
+            "standardBody": "Emergency pages need direct CTAs, plain-language service cards, and realistic expectations about what happens after first contact.",
+            "standardLink": "Start the urgent request →",
+            "standardCards": [
+                {"title": "Problem first", "description": "Visitors can quickly match their issue to the right request path."},
+                {"title": "Low friction", "description": "The primary contact action stays obvious on mobile and desktop."},
+                {"title": "Realistic expectations", "description": "The copy stays useful while keeping promises grounded in the provided information."},
+            ],
+            "processHeading": "From urgent issue to the next practical step.",
+            "processIntro": "The page tells people what to share so the request can be understood quickly.",
+        }
+        return base | {
+            "primaryCta": "Call now",
+            "secondaryCta": "See urgent services",
+            "heroEyebrow": f"Urgent {business_type} in {service_area}",
+            "heroSubheadline": "A phone-first service page built around fast understanding, direct contact, and practical information.",
+            "proofPoints": ["Phone-first CTA", "Issue and location captured clearly", "Clear expectations before next steps", f"Service context for {service_area}"],
+            "pageCopy": page_copy,
+        }
+
+    if vertical == "professional-advisory":
+        page_copy = _common_page_copy(name, business_type, service_area) | {
+            "panelLabel": "Advisory path",
+            "panelHeading": "A composed path from question to consultation.",
+            "servicesEyebrow": "Advisory services",
+            "servicesHeading": f"Clear {business_type} guidance for {service_area}.",
+            "servicesIntro": "The page should help prospective clients understand the advisory fit, next step, and information needed for a useful first conversation.",
+            "standardEyebrow": "Client standard",
+            "standardHeading": "Build confidence before the first conversation.",
+            "standardBody": "Professional service pages need precise language, restrained design, and credible explanations without exaggerated outcomes.",
+            "standardLink": "Request a consultation →",
+            "standardCards": [
+                {"title": "Fit first", "description": "The visitor understands whether the service area matches their situation."},
+                {"title": "Clear intake", "description": "The CTA tells clients what to send or book for a useful next step."},
+                {"title": "Credible restraint", "description": "The page focuses on process clarity and avoids overstatement."},
+            ],
+        }
+        return base | {
+            "primaryCta": "Request a consultation",
+            "secondaryCta": "Review services",
+            "heroSubheadline": "A restrained, credible page built around fit, intake, and a practical consultation path.",
+            "services": [
+                {"title": "Initial consultation", "description": "Share the situation, goal, and timeline so the right next step can be identified."},
+                {"title": "Advisory support", "description": "A practical path for questions that need context, judgment, and clear communication."},
+                {"title": "Document or case review", "description": "Visitors can explain what they have and what they need help understanding."},
+                {"title": "Ongoing guidance", "description": "A route for clients who need continued support after the first conversation."},
+            ],
+            "proofPoints": ["Consultation-focused CTA", "Clear intake expectations", "Credible language and restrained claims", f"Client context for {service_area}"],
+            "processSteps": [
+                {"title": "Share the question", "description": "Send the main issue, timing, and any relevant context."},
+                {"title": "Confirm fit", "description": "The next step is matched to the service area and available contact path."},
+                {"title": "Start the consultation path", "description": "Move into a conversation with clearer expectations."},
+            ],
+            "offer": "Request a consultation path based on your situation and timing.",
+            "guarantee": "A clear first conversation path.",
+            "pageCopy": page_copy,
+        }
+
+    if vertical in {"clinical-wellness", "beauty-wellness"}:
+        page_copy = _common_page_copy(name, business_type, service_area) | {
+            "panelLabel": "Appointment path",
+            "panelHeading": "A calm path from question to appointment.",
+            "servicesHeading": f"Thoughtful {business_type} services in {service_area}.",
+            "servicesIntro": "Visitors can understand the service options, appointment path, and details worth sharing before they book.",
+            "standardEyebrow": "Care standard",
+            "standardHeading": "Make the first step feel simple and reassuring.",
+            "standardBody": "Health, wellness, and beauty sites need calm structure, accessible copy, and practical booking information without overstating outcomes.",
+            "standardLink": "Start an appointment request →",
+            "standardCards": [
+                {"title": "Clear fit", "description": "Visitors can identify the service that matches their goal or concern."},
+                {"title": "Comfortable booking", "description": "The CTA makes the next action feel obvious and low-pressure."},
+                {"title": "Useful preparation", "description": "The page explains what details help before the appointment."},
+            ],
+        }
+        return base | {
+            "primaryCta": "Request an appointment",
+            "secondaryCta": "View services",
+            "heroSubheadline": "A calm, appointment-focused page that explains services, preparation, and how to get started.",
+            "services": [
+                {"title": "Service consultation", "description": "Share the goal, concern, or preferred service so the right path can be suggested."},
+                {"title": "Appointment booking", "description": "A direct route for clients ready to ask about timing and availability."},
+                {"title": "Preparation guidance", "description": "The page explains what details are useful before a visit."},
+                {"title": "Follow-up questions", "description": "A clear place to ask practical questions before booking."},
+            ],
+            "proofPoints": ["Appointment-focused CTA", "Calm service explanation", "Clear expectations before booking", f"Client context for {service_area}"],
+            "offer": "Request an appointment path with the details needed to get started.",
+            "guarantee": "A clear booking inquiry before the visit.",
+            "pageCopy": page_copy,
+        }
+
+    return base
 
 
 def _public_image_url(value: Any) -> str:
     text = _string(value)
-    if not text:
-        return ""
-    if not re.match(r"^https?://", text, flags=re.IGNORECASE):
+    if not text or not re.match(r"^https?://", text, flags=re.IGNORECASE):
         return ""
     if any(marker in text.lower() for marker in ("data:image", "base64,", "schema.org")):
         return ""
@@ -398,12 +325,7 @@ def _public_image_url(value: Any) -> str:
 
 
 def _photo_list(raw: Mapping[str, Any], business_name: str) -> list[dict[str, str]]:
-    """Return a small, safe list of public business photos.
-
-    Photos should come from lead data, the business's own site, or another public
-    source attached to that business. The generator should not invent stock photos
-    or hotlink unrelated imagery just to make the page look rich.
-    """
+    """Return a small, safe list of public business photos."""
 
     sources: list[Any] = []
     for key in (
@@ -458,12 +380,7 @@ def _photo_list(raw: Mapping[str, Any], business_name: str) -> list[dict[str, st
 
 
 def normalize_business_profile(raw: Mapping[str, Any]) -> dict[str, Any]:
-    """Normalize loose lead data into the schema consumed by the template.
-
-    The template intentionally uses a small, stable schema so generated sites do
-    not break when the lead data is incomplete. Never invent hard proof such as
-    licences, awards, review counts, warranties, or years in business.
-    """
+    """Normalize loose lead data into the schema consumed by the template."""
 
     name = _string(raw.get("name") or raw.get("business_name"), "Local Service Company")
     business_type = _string(raw.get("business_type") or raw.get("businessType") or raw.get("category"), "local service")
@@ -475,17 +392,8 @@ def normalize_business_profile(raw: Mapping[str, Any]) -> dict[str, Any]:
     photos = _photo_list(raw, name)
     vertical = _string(raw.get("vertical") or raw.get("verticalProfile"), detect_vertical(raw))
     defaults = _vertical_defaults(vertical, name, business_type, service_area)
-    page_copy = defaults | _page_copy_for_vertical(vertical, name, business_type, service_area)
+    page_copy = dict(defaults["pageCopy"])
     page_copy.update(raw.get("pageCopy") if isinstance(raw.get("pageCopy"), Mapping) else {})
-
-    primary_cta = _string(raw.get("primary_cta") or raw.get("primaryCta"), defaults["primaryCta"])
-    secondary_cta = _string(raw.get("secondary_cta") or raw.get("secondaryCta"), defaults["secondaryCta"])
-
-    services = _list(raw.get("services")) or defaults["services"]
-    proof_points = _list(raw.get("proof_points") or raw.get("proofPoints")) or defaults["proofPoints"]
-    process_steps = _list(raw.get("process_steps") or raw.get("processSteps")) or defaults["processSteps"]
-    faqs = _list(raw.get("faqs") or raw.get("faq")) or defaults["faqs"]
-    reviews = _list(raw.get("reviews") or raw.get("testimonials"))
 
     return {
         "name": name,
@@ -497,8 +405,8 @@ def normalize_business_profile(raw: Mapping[str, Any]) -> dict[str, Any]:
         "phone": phone,
         "email": email,
         "website": website,
-        "primaryCta": primary_cta,
-        "secondaryCta": secondary_cta,
+        "primaryCta": _string(raw.get("primary_cta") or raw.get("primaryCta"), defaults["primaryCta"]),
+        "secondaryCta": _string(raw.get("secondary_cta") or raw.get("secondaryCta"), defaults["secondaryCta"]),
         "hero": {
             "eyebrow": _string(raw.get("eyebrow"), defaults["heroEyebrow"]),
             "headline": _string(raw.get("headline"), defaults["heroHeadline"]),
@@ -507,11 +415,11 @@ def normalize_business_profile(raw: Mapping[str, Any]) -> dict[str, Any]:
         "heroImage": photos[0] if photos else None,
         "photos": photos,
         "pageCopy": page_copy,
-        "proofPoints": proof_points,
-        "services": services,
-        "processSteps": process_steps,
-        "reviews": reviews,
-        "faqs": faqs,
+        "proofPoints": _list(raw.get("proof_points") or raw.get("proofPoints")) or defaults["proofPoints"],
+        "services": _list(raw.get("services")) or defaults["services"],
+        "processSteps": _list(raw.get("process_steps") or raw.get("processSteps")) or defaults["processSteps"],
+        "reviews": _list(raw.get("reviews") or raw.get("testimonials")),
+        "faqs": _list(raw.get("faqs") or raw.get("faq")) or defaults["faqs"],
         "offer": _string(raw.get("offer"), defaults["offer"]),
         "guarantee": _string(raw.get("guarantee"), defaults["guarantee"]),
         "brandTone": _string(raw.get("brand_tone") or raw.get("brandTone"), "premium, direct, calm, trustworthy"),
@@ -523,11 +431,7 @@ def render_site_from_template(
     output_dir: Path | str = DEFAULT_OUTPUT_DIR,
     overwrite: bool = True,
 ) -> GeneratedSite:
-    """Copy the canonical template and write compact plan files.
-
-    This still uses one canonical codebase, but it is no longer one visual
-    template. `design.json` and `sections.json` select different patterns.
-    """
+    """Copy the canonical template and write compact plan files."""
 
     if not TEMPLATE_DIR.exists():
         raise SiteGenerationError(f"Missing canonical template folder: {TEMPLATE_DIR}")
@@ -543,21 +447,12 @@ def render_site_from_template(
         shutil.rmtree(target)
 
     shutil.copytree(TEMPLATE_DIR, target)
-
     data_dir = target / "data"
     data_dir.mkdir(parents=True, exist_ok=True)
-    (data_dir / "business.json").write_text(
-        json.dumps(business, ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
-    )
+    (data_dir / "business.json").write_text(json.dumps(business, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     write_site_plan(target, site_plan)
 
-    return GeneratedSite(
-        slug=slug,
-        path=target,
-        business_name=business["name"],
-        design_system=site_plan.design["id"],
-    )
+    return GeneratedSite(slug=slug, path=target, business_name=business["name"], design_system=site_plan.design["id"])
 
 
 def build_codex_instruction(raw_business: Mapping[str, Any]) -> str:
@@ -584,11 +479,7 @@ def build_codex_instruction(raw_business: Mapping[str, Any]) -> str:
 
 
 def run_codex_refinement(site_path: Path, instruction: str, codex_command: str = "codex", timeout_seconds: int = 1800) -> None:
-    """Optionally run Codex inside a generated site folder.
-
-    `.env` and `.env.local` are loaded and forwarded to the Codex subprocess, so
-    local OAuth/API variables can be used without hardcoding secrets.
-    """
+    """Optionally run Codex inside a generated site folder."""
 
     if not site_path.exists():
         raise SiteGenerationError(f"Cannot refine missing site path: {site_path}")
@@ -639,8 +530,7 @@ def generate_site(
     generated = render_site_from_template(business, output_dir=output_dir)
 
     if refine_with_codex:
-        instruction = build_codex_instruction(business)
-        run_codex_refinement(generated.path, instruction)
+        run_codex_refinement(generated.path, build_codex_instruction(business))
 
     if refine_with_claude:
         run_claude_refinement(site_plan, generated.path)
