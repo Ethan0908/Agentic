@@ -1,0 +1,11 @@
+{
+  "name": "Sample Omakase Restaurant",
+  "business_type": "omakase restaurant",
+  "city": "New York",
+  "service_area": "New York",
+  "website": "",
+  "phone": "",
+  "email": "",
+  "photos": [],
+  "notes": "Use this as a smoke test for restaurant-hospitality generation. The output must sound like a dining and reservation page, not a repair or generic local-service page. Do not invent ratings, awards, prices, or availability."
+}
