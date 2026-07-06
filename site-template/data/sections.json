@@ -5,13 +5,36 @@
   "processVariant": "three-step",
   "proofOrExpectation": "expectations",
   "finalCtaVariant": "quote",
-  "sectionOrder": ["hero", "proof", "services", "decision", "process", "proofOrExpectation", "faq", "finalCta"],
+  "imageStrategy": {
+    "mode": "graphic-editorial",
+    "heroPhoto": null,
+    "galleryCount": 0,
+    "rules": [
+      "No real business photos were supplied. Do not fabricate or hotlink stock photos.",
+      "Use layout, typography, cards, gradients, and service-specific microcopy to create quality."
+    ]
+  },
+  "sectionOrder": [
+    "hero",
+    "proof",
+    "services",
+    "decision",
+    "process",
+    "proofOrExpectation",
+    "faq",
+    "finalCta"
+  ],
   "intent": {
     "emergency": false,
     "appointment": false,
     "professional": false,
+    "restaurant": false,
+    "imageLed": false,
+    "hasPhotos": false,
     "hasReviews": false,
-    "hasPhone": false
+    "hasPhone": false,
+    "hasEmail": false,
+    "hasWebsite": false
   },
   "registryNotes": {}
 }
