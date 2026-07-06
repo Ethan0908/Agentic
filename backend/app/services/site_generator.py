@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import os
 import re
+import shutil
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -176,10 +178,30 @@ def build_codex_instruction(raw_business: Mapping[str, Any]) -> str:
     )
 
 
+def _codex_command(default_command: str = "codex") -> list[str]:
+    env_command = os.environ.get("CODEX_COMMAND", "").strip()
+    if env_command:
+        return env_command.split()
+
+    codex_path = shutil.which(default_command)
+    if codex_path:
+        return [codex_path]
+
+    npx_path = shutil.which("npx")
+    if npx_path:
+        return [npx_path, "-y", "@openai/codex"]
+
+    raise SiteGenerationError(
+        "Codex CLI was not found in this runtime. Rebuild the container with frontend/Dockerfile or set CODEX_COMMAND. "
+        "Expected either `codex` on PATH or `npx` available for `npx -y @openai/codex`."
+    )
+
+
 def run_codex_refinement(site_path: Path, instruction: str, codex_command: str = "codex", timeout_seconds: int = 1800) -> None:
     if not site_path.exists():
         raise SiteGenerationError(f"Cannot run in missing site path: {site_path}")
-    subprocess.run([codex_command, "exec", instruction], cwd=site_path, check=True, text=True, env=load_local_env(), timeout=timeout_seconds)
+    command = [*_codex_command(codex_command), "exec", instruction]
+    subprocess.run(command, cwd=site_path, check=True, text=True, env=load_local_env(), timeout=timeout_seconds)
 
 
 def generate_site(raw_business: Mapping[str, Any], output_dir: Path | str = DEFAULT_OUTPUT_DIR, refine_with_codex: bool = True, refine_with_claude: bool = False) -> GeneratedSite:
