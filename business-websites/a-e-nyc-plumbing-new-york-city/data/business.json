@@ -1,0 +1,74 @@
+{
+  "name": "Northline Home Services",
+  "slug": "northline-home-services",
+  "businessType": "home service",
+  "city": "New York",
+  "serviceArea": "Manhattan and nearby neighbourhoods",
+  "phone": "",
+  "email": "",
+  "website": "",
+  "primaryCta": "Request a quote",
+  "secondaryCta": "View services",
+  "hero": {
+    "eyebrow": "Home service in Manhattan and nearby neighbourhoods",
+    "headline": "Clear, careful home service without the back-and-forth.",
+    "subheadline": "Get a practical next step, a cleaner booking experience, and direct communication before work begins."
+  },
+  "heroImage": null,
+  "photos": [],
+  "proofPoints": [
+    "Clear scope before work starts",
+    "Practical scheduling and communication",
+    "Service across Manhattan and nearby neighbourhoods"
+  ],
+  "services": [
+    {
+      "title": "Assessment",
+      "description": "Share the issue and get a clear path for the next step."
+    },
+    {
+      "title": "Repair and service",
+      "description": "Focused work with communication before and after the visit."
+    },
+    {
+      "title": "Installation",
+      "description": "Planned installation with attention to fit, finish, and reliability."
+    },
+    {
+      "title": "Maintenance",
+      "description": "Preventive service that helps reduce surprise problems later."
+    }
+  ],
+  "processSteps": [
+    {
+      "title": "Send the details",
+      "description": "Share photos, location, timing, and what is happening."
+    },
+    {
+      "title": "Get the next step",
+      "description": "Receive a quote path, visit option, or recommended action."
+    },
+    {
+      "title": "Complete the work",
+      "description": "The job is handled with clear communication from start to finish."
+    }
+  ],
+  "reviews": [],
+  "faqs": [
+    {
+      "question": "How do I get pricing?",
+      "answer": "Send a few details about the work needed. The team can explain whether a quote, assessment, or booking makes the most sense."
+    },
+    {
+      "question": "What should I prepare before contacting you?",
+      "answer": "A short description, photos if available, the property location, and your preferred timing are usually enough to start."
+    },
+    {
+      "question": "Do you serve my area?",
+      "answer": "The service area is Manhattan and nearby neighbourhoods. Contact the team with your address to confirm availability."
+    }
+  ],
+  "offer": "Request a practical quote path based on your project details.",
+  "guarantee": "Clear communication before work begins.",
+  "brandTone": "premium, direct, calm, trustworthy"
+}

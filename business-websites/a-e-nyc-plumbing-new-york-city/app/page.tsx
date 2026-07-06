@@ -1,329 +1,359 @@
-import Image from "next/image";
-import data from "../business.json";
+import type { CSSProperties } from 'react';
+import business from '../data/business.json';
+import design from '../data/design.json';
+import sections from '../data/sections.json';
 
-const company = data.company;
-const places = data.places_data;
+type Service = {
+  title: string;
+  description: string;
+};
 
-const phoneDisplay = places.national_phone ?? company.phone;
-const phoneHref = `tel:${company.phone.replace(/[^\d+]/g, "")}`;
-const address = places.formatted_address ?? company.address;
-const website = company.original_website ?? places.website_uri;
-const mapsUrl = places.google_maps_url;
+type Review = {
+  quote?: string;
+  text?: string;
+  author?: string;
+  name?: string;
+  role?: string;
+};
 
-const callPrep = [
-  "The property address, unit, floor, and best access point.",
-  "Where the plumbing issue is happening and what has changed.",
-  "Any building instructions, shutoff details, or timing constraints.",
-];
+type Faq = {
+  question: string;
+  answer: string;
+};
 
-const processSteps = [
-  {
-    title: "Call the main number",
-    text: "Start with the listed phone number so current availability and the right next step can be confirmed.",
-  },
-  {
-    title: "Share the site details",
-    text: "Give the New York City address, building access notes, and a clear description of the plumbing request.",
-  },
-  {
-    title: "Confirm the next move",
-    text: "Ask for current information on service scope, timing, and any details needed before a visit or follow-up.",
-  },
-];
+type BusinessPhoto = {
+  url: string;
+  alt?: string;
+  caption?: string;
+  kind?: string;
+  source?: string;
+};
 
-const faqs = [
-  {
-    question: "What area is listed for A&E NYC Plumbing?",
-    answer:
-      "The business data lists A&E NYC Plumbing in New York City, with an address at 40 Fulton St, New York, NY 10038.",
-  },
-  {
-    question: "Are exact hours available here?",
-    answer:
-      "No exact hours were provided in the source data. Call the listed phone number for current availability.",
-  },
-  {
-    question: "Can pricing be confirmed online?",
-    answer:
-      "No prices were provided in the source data. Call for current pricing, estimate, or visit details.",
-  },
-  {
-    question: "Is there an email address?",
-    answer:
-      "No email address was included in the provided business data. Use the phone number or the original website.",
-  },
-];
+function phoneHref(phone?: string) {
+  if (!phone) return '#contact';
+  return `tel:${phone.replace(/[^+\d]/g, '')}`;
+}
 
-export default function HomePage() {
+function contactHref() {
+  if (business.phone) return phoneHref(business.phone);
+  if (business.email) return `mailto:${business.email}`;
+  return '#contact';
+}
+
+function serviceList(): Service[] {
+  return business.services.length ? business.services : [];
+}
+
+function reviewList(): Review[] {
+  return business.reviews || [];
+}
+
+function faqList(): Faq[] {
+  return business.faqs || [];
+}
+
+function photoList(): BusinessPhoto[] {
+  return ((business.photos || []) as BusinessPhoto[]).filter((photo) => Boolean(photo.url)).slice(0, 6);
+}
+
+function heroPhoto(photos: BusinessPhoto[]): BusinessPhoto | null {
+  const candidate = business.heroImage as BusinessPhoto | null;
+  if (candidate?.url) return candidate;
+  return photos[0] || null;
+}
+
+function photoAlt(photo: BusinessPhoto, fallback: string) {
+  return photo.alt || photo.caption || fallback;
+}
+
+function themeVars(): CSSProperties {
+  return {
+    '--bg': design.tokens.bg,
+    '--ink': design.tokens.ink,
+    '--muted': design.tokens.muted,
+    '--surface': design.tokens.surface,
+    '--surface-strong': design.tokens.surfaceStrong,
+    '--accent': design.tokens.accent,
+    '--accent-dark': design.tokens.accentDark,
+  } as CSSProperties;
+}
+
+function panelHeading() {
+  if (sections.intent.emergency) return 'A direct path when the issue cannot wait.';
+  if (sections.intent.professional) return 'A clearer way to choose your next step.';
+  if (sections.intent.appointment) return 'A calm path from question to appointment.';
+  return 'Clear scope, practical next steps, and careful follow-through.';
+}
+
+function panelLabel() {
+  if (sections.intent.emergency) return 'Urgent request flow';
+  if (sections.intent.professional) return 'Advisory flow';
+  if (sections.intent.appointment) return 'Appointment flow';
+  return 'Service flow';
+}
+
+function processLabels() {
+  if (sections.processVariant === 'rapid-response') {
+    return [
+      ['01', 'Request', 'Share the location, timing, and the problem so the request can be understood quickly.'],
+      ['02', 'Scope', 'The issue is reviewed and the practical next step is explained.'],
+      ['03', 'Resolve', 'The work moves forward with clear communication and realistic expectations.'],
+    ];
+  }
+  if (sections.processVariant === 'consultative') {
+    return [
+      ['01', 'Listen', 'Start with the goals, constraints, and details that affect the recommendation.'],
+      ['02', 'Advise', 'Get a practical path based on what matters most for the situation.'],
+      ['03', 'Move', 'Continue into a quote, booking, or consultation with fewer unknowns.'],
+    ];
+  }
+  return [
+    ['01', 'Share', 'Send the issue, location, and timing so the request can be scoped properly.'],
+    ['02', 'Clarify', 'Receive a practical recommendation, quote path, or booking option.'],
+    ['03', 'Complete', 'The job moves forward with direct communication from start to finish.'],
+  ];
+}
+
+function actionSubtext() {
+  if (business.phone) return `Call or request service across ${business.serviceArea}.`;
+  if (business.email) return `Send details to ${business.email} and get the next step.`;
+  return `Send a short request for ${business.businessType} in ${business.serviceArea}.`;
+}
+
+export default function Home() {
+  const ctaHref = contactHref();
+  const reviews = reviewList();
+  const services = serviceList();
+  const process = processLabels();
+  const photos = photoList();
+  const mainPhoto = heroPhoto(photos);
+  const galleryPhotos = photos.filter((photo) => photo.url !== mainPhoto?.url).slice(0, 4);
+
   return (
-    <main>
-      <section className="top-strip" aria-label="Business contact summary">
-        <div className="site-shell top-strip__inner">
-          <span>New York City plumber</span>
-          <span>40 Fulton St, New York, NY 10038</span>
-          <a href={phoneHref}>{phoneDisplay}</a>
-        </div>
-      </section>
-
-      <header className="site-header">
-        <div className="site-shell header-grid">
-          <a className="brand" href="#top" aria-label="A&E NYC Plumbing home">
-            <span className="brand__mark">A&amp;E</span>
+    <main style={themeVars()} data-theme={design.id} data-variant={sections.heroVariant} data-has-photos={photos.length ? 'true' : 'false'}>
+      <div className="page-shell">
+        <header className="site-header">
+          <a className="brand" href="#top" aria-label={`${business.name} home`}>
+            <span className="brand-mark" aria-hidden="true">{business.name.slice(0, 1)}</span>
             <span>
-              <strong>A&amp;E NYC Plumbing</strong>
-              <small>Plumber · New York City</small>
+              <strong>{business.name}</strong>
+              <small>{business.serviceArea}</small>
             </span>
           </a>
-          <nav className="nav-links" aria-label="Page sections">
-            <a href="#details">Details</a>
-            <a href="#process">Call Prep</a>
-            <a href="#location">Location</a>
-            <a href="#contact">Contact</a>
+          <nav className="desktop-nav" aria-label="Main navigation">
+            <a href="#services">Services</a>
+            <a href="#standard">Standard</a>
+            <a href="#process">Process</a>
+            <a href="#faq">FAQ</a>
           </nav>
-          <a className="header-call" href={phoneHref}>
-            Call {phoneDisplay}
-          </a>
-        </div>
-      </header>
+          <a className="header-cta" href={ctaHref}>{business.primaryCta}</a>
+        </header>
 
-      <section className="hero" id="top">
-        <div className="site-shell hero-grid">
+        <section id="top" className="hero section-pad">
           <div className="hero-copy">
-            <p className="eyebrow">Plumbing contact for New York City</p>
-            <h1>Plumbing help starts with a direct NYC call.</h1>
-            <p className="hero-lede">
-              A&amp;E NYC Plumbing is listed as a plumber at 40 Fulton St in
-              New York, NY. Call to confirm current availability, explain the
-              plumbing request, and get the right next step.
-            </p>
-            <div className="hero-actions" aria-label="Primary actions">
-              <a className="button button--primary" href={phoneHref}>
-                Call {phoneDisplay}
-              </a>
-              <a
-                className="button button--secondary"
-                href={website}
-                target="_blank"
-                rel="noreferrer"
-              >
-                Original Website
-              </a>
+            <p className="eyebrow">{business.hero.eyebrow}</p>
+            <h1>{business.hero.headline}</h1>
+            <p className="hero-subhead">{business.hero.subheadline}</p>
+            <div className="hero-actions">
+              <a className="button primary" href={ctaHref}>{business.primaryCta}</a>
+              <a className="button secondary" href="#services">{business.secondaryCta}</a>
             </div>
-            <dl className="hero-facts" aria-label="Company facts">
-              <div>
-                <dt>Phone</dt>
-                <dd>
-                  <a href={phoneHref}>{phoneDisplay}</a>
-                </dd>
-              </div>
-              <div>
-                <dt>Address</dt>
-                <dd>{address}</dd>
-              </div>
-              <div>
-                <dt>City</dt>
-                <dd>New York City</dd>
-              </div>
-            </dl>
+            <p className="action-note">{actionSubtext()}</p>
           </div>
 
-          <div className="hero-media" aria-label="Plumbing workbench visual">
-            <Image
-              src="/images/plumbing-workbench-hero.png"
-              alt="Plumbing fittings, pipework, and a pipe wrench on a work surface"
-              width={1680}
-              height={920}
-              priority
-            />
-            <div className="hero-media__label">
-              <span>Call for current availability</span>
-              <strong>{phoneDisplay}</strong>
+          <div className="hero-side">
+            {mainPhoto ? (
+              <figure className="hero-photo-card">
+                <img src={mainPhoto.url} alt={photoAlt(mainPhoto, `${business.name} ${business.businessType}`)} />
+                {mainPhoto.caption ? <figcaption>{mainPhoto.caption}</figcaption> : null}
+              </figure>
+            ) : null}
+
+            <aside className="hero-panel" aria-label="Service summary">
+              <div className="panel-kicker">{panelLabel()}</div>
+              <h2>{panelHeading()}</h2>
+              <div className="panel-divider" />
+              <div className="panel-grid">
+                {process.map(([number, title, description]) => (
+                  <div key={title}>
+                    <span>{number}</span>
+                    <strong>{title}</strong>
+                    <p>{description}</p>
+                  </div>
+                ))}
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <section className={`proof-strip proof-${sections.proofVariant}`} aria-label="Business proof points">
+          {business.proofPoints.slice(0, 4).map((point) => (
+            <div key={point}>
+              <span aria-hidden="true" />
+              <p>{point}</p>
             </div>
-          </div>
-        </div>
-      </section>
+          ))}
+        </section>
 
-      <section className="intro-panel" id="details">
-        <div className="site-shell intro-grid">
-          <div>
-            <p className="section-kicker">Straight information first</p>
-            <h2>A practical contact point for plumbing requests in NYC.</h2>
-          </div>
-          <div className="intro-copy">
-            <p>
-              Plumbing issues usually need clear details before anyone can
-              quote timing, scope, or next steps. This page keeps the verified
-              information visible: A&amp;E NYC Plumbing, the listed phone
-              number, the Fulton Street address, and the original website.
-            </p>
-            <p>
-              If hours, prices, or specific services are important to your
-              request, call for current information. Those details were not
-              included in the provided business data.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <section className="prep-section" id="process">
-        <div className="site-shell split-layout">
-          <div className="section-heading">
-            <p className="section-kicker">Before you call</p>
-            <h2>Have the building details ready.</h2>
-            <p>
-              New York City plumbing calls often depend on access, building
-              rules, and a clear description of the issue. Having the basics
-              ready makes the first conversation more useful.
-            </p>
-          </div>
-
-          <div className="prep-list">
-            {callPrep.map((item, index) => (
-              <div className="prep-item" key={item}>
-                <span>{String(index + 1).padStart(2, "0")}</span>
-                <p>{item}</p>
-              </div>
+        {galleryPhotos.length ? (
+          <section className="photo-ribbon" aria-label={`${business.name} photos`}>
+            {galleryPhotos.map((photo, index) => (
+              <figure key={`${photo.url}-${index}`}>
+                <img src={photo.url} alt={photoAlt(photo, `${business.name} project photo ${index + 1}`)} />
+                {photo.caption ? <figcaption>{photo.caption}</figcaption> : null}
+              </figure>
             ))}
-          </div>
-        </div>
-      </section>
+          </section>
+        ) : null}
 
-      <section className="process-band" aria-label="Contact process">
-        <div className="site-shell">
-          <div className="section-heading section-heading--wide">
-            <p className="section-kicker">Simple call flow</p>
-            <h2>Use the phone number to confirm what applies now.</h2>
+        <section id="services" className="section-pad services-section">
+          <div className="section-heading-row">
+            <div>
+              <p className="eyebrow">Services</p>
+              <h2>Practical {business.businessType} support for {business.serviceArea}.</h2>
+            </div>
+            <p>
+              Tell the team what is happening, where the work is needed, and the timing. The response can start with the right context instead of a long back-and-forth.
+            </p>
           </div>
-          <div className="process-grid">
-            {processSteps.map((step, index) => (
-              <article className="process-card" key={step.title}>
-                <span className="process-card__number">
-                  {String(index + 1).padStart(2, "0")}
-                </span>
-                <h3>{step.title}</h3>
-                <p>{step.text}</p>
+
+          <div className={`service-bento services-${sections.servicesVariant}`}>
+            {services.map((service, index) => (
+              <article className="service-card" key={service.title}>
+                <div className="card-number">{String(index + 1).padStart(2, '0')}</div>
+                <div>
+                  <h3>{service.title}</h3>
+                  <p>{service.description}</p>
+                </div>
               </article>
             ))}
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section className="location-section" id="location">
-        <div className="site-shell location-grid">
-          <div className="location-copy">
-            <p className="section-kicker">Listed location</p>
-            <h2>Fulton Street address, New York City service context.</h2>
+        <section id="standard" className="section-pad standard-section">
+          <div className="standard-main">
+            <p className="eyebrow">Service standard</p>
+            <h2>Clear communication before the work starts.</h2>
             <p>
-              A&amp;E NYC Plumbing is listed at {address}. For service
-              coverage, visit details, or current information for your exact
-              address, use the phone number below.
+              Good service is not only the final result. It is also how the request is handled, scoped, explained, and followed through. {business.name} keeps the experience focused on practical next steps.
             </p>
-            <div className="location-actions">
-              <a className="button button--primary" href={phoneHref}>
-                Call {phoneDisplay}
-              </a>
-              <a
-                className="button button--dark"
-                href={mapsUrl}
-                target="_blank"
-                rel="noreferrer"
-              >
-                Open Map
-              </a>
-            </div>
+            <a className="text-link" href={ctaHref}>Start with a clear request →</a>
           </div>
-          <div className="service-area-box" aria-label="Service area details">
-            <div className="service-area-box__top">
-              <span>NYC</span>
-              <strong>Plumber</strong>
-            </div>
-            <dl>
-              <div>
-                <dt>Business name</dt>
-                <dd>A&amp;E NYC Plumbing</dd>
-              </div>
-              <div>
-                <dt>Listed address</dt>
-                <dd>{address}</dd>
-              </div>
-              <div>
-                <dt>Phone</dt>
-                <dd>
-                  <a href={phoneHref}>{phoneDisplay}</a>
-                </dd>
-              </div>
-              <div>
-                <dt>Website</dt>
-                <dd>
-                  <a href={website} target="_blank" rel="noreferrer">
-                    {website.replace(/^https?:\/\//, "").replace(/\/$/, "")}
-                  </a>
-                </dd>
-              </div>
-            </dl>
-          </div>
-        </div>
-      </section>
 
-      <section className="faq-section" aria-label="Frequently asked questions">
-        <div className="site-shell faq-grid">
-          <div className="section-heading">
-            <p className="section-kicker">Current details</p>
-            <h2>Call for anything not listed in the source data.</h2>
+          <div className="standard-list">
+            <article>
+              <span>01</span>
+              <h3>Scope first</h3>
+              <p>The request is understood before expectations are set.</p>
+            </article>
+            <article>
+              <span>02</span>
+              <h3>Straight answers</h3>
+              <p>The next step is explained in plain language, whether that means a quote path, visit, booking, or recommendation.</p>
+            </article>
+            <article>
+              <span>03</span>
+              <h3>Local context</h3>
+              <p>The service path stays connected to {business.serviceArea} and the work being requested.</p>
+            </article>
+          </div>
+        </section>
+
+        <section id="process" className="section-pad process-section">
+          <div className="section-heading-row compact">
+            <div>
+              <p className="eyebrow">Process</p>
+              <h2>From first request to a defined next step.</h2>
+            </div>
+            <p>
+              A simple process helps visitors act without guessing what information to send or what happens after contact.
+            </p>
+          </div>
+
+          <div className={`timeline process-${sections.processVariant}`}>
+            {business.processSteps.map((step, index) => (
+              <article key={step.title}>
+                <span>{String(index + 1).padStart(2, '0')}</span>
+                <h3>{step.title}</h3>
+                <p>{step.description}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="section-pad confidence-section">
+          <div className="section-heading-row compact">
+            <div>
+              <p className="eyebrow">Confidence</p>
+              <h2>{reviews.length ? 'What customers say.' : 'What customers can expect.'}</h2>
+            </div>
+            <p>
+              Visitors get the information they need before choosing the next step.
+            </p>
+          </div>
+
+          {reviews.length ? (
+            <div className="review-grid">
+              {reviews.slice(0, 3).map((review, index) => (
+                <figure key={`${review.author || review.name || 'review'}-${index}`}>
+                  <blockquote>“{review.quote || review.text}”</blockquote>
+                  <figcaption>{review.author || review.name}{review.role ? `, ${review.role}` : ''}</figcaption>
+                </figure>
+              ))}
+            </div>
+          ) : (
+            <div className="expectation-card">
+              <h3>{business.guarantee}</h3>
+              <p>
+                Share the service needed, the location, preferred timing, and any photos or details that make the request easier to understand.
+              </p>
+            </div>
+          )}
+        </section>
+
+        <section id="faq" className="section-pad faq-section">
+          <div className="section-heading-row compact">
+            <div>
+              <p className="eyebrow">FAQ</p>
+              <h2>Questions before getting started.</h2>
+            </div>
+            <p>
+              Short answers reduce friction and help visitors decide whether to contact the business.
+            </p>
           </div>
           <div className="faq-list">
-            {faqs.map((faq) => (
-              <details key={faq.question}>
-                <summary>{faq.question}</summary>
-                <p>{faq.answer}</p>
+            {faqList().map((item) => (
+              <details key={item.question}>
+                <summary>{item.question}</summary>
+                <p>{item.answer}</p>
               </details>
             ))}
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section className="contact-section" id="contact">
-        <div className="site-shell contact-grid">
-          <div>
-            <p className="section-kicker">Contact A&amp;E NYC Plumbing</p>
-            <h2>Ready to make the call?</h2>
-            <p>
-              Use the listed number for plumbing requests, scheduling
-              questions, and current information. If you need details that are
-              not shown here, ask during the call.
-            </p>
+        <section id="contact" className={`final-cta section-pad final-${sections.finalCtaVariant}`}>
+          <div className="final-card">
+            <p className="eyebrow">Next step</p>
+            <h2>{business.offer}</h2>
+            <p>{actionSubtext()}</p>
+            <div className="hero-actions centred">
+              <a className="button primary" href={ctaHref}>{business.primaryCta}</a>
+              {business.phone ? <a className="button secondary" href={phoneHref(business.phone)}>Call {business.phone}</a> : null}
+              {!business.phone && business.email ? <a className="button secondary" href={`mailto:${business.email}`}>{business.email}</a> : null}
+            </div>
           </div>
-          <div className="contact-actions">
-            <a className="button button--primary button--large" href={phoneHref}>
-              Call {phoneDisplay}
-            </a>
-            <a
-              className="button button--secondary button--large"
-              href={website}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Visit Original Site
-            </a>
-          </div>
-        </div>
-      </section>
+        </section>
 
-      <footer className="site-footer">
-        <div className="site-shell footer-grid">
+        <footer className="site-footer">
           <div>
-            <strong>A&amp;E NYC Plumbing</strong>
-            <p>Plumber in New York City</p>
+            <strong>{business.name}</strong>
+            <p>{business.businessType} serving {business.serviceArea}</p>
           </div>
-          <address>
-            <a href={phoneHref}>{phoneDisplay}</a>
-            <span>{address}</span>
-            <a href={website} target="_blank" rel="noreferrer">
-              {website.replace(/^https?:\/\//, "").replace(/\/$/, "")}
-            </a>
-          </address>
-        </div>
-      </footer>
+          <a href={ctaHref}>{business.primaryCta}</a>
+        </footer>
+
+        <a className="mobile-sticky-cta" href={ctaHref}>{business.primaryCta}</a>
+      </div>
     </main>
   );
 }
