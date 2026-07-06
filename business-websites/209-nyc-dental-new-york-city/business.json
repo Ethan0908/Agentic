@@ -1,0 +1,51 @@
+{
+  "name": "209 NYC Dental",
+  "category": "Dentist",
+  "city": "New York City",
+  "address": "209 E 56th St 1st floor, New York, NY 10022, USA",
+  "phone": "+1 212-355-2290",
+  "email": null,
+  "originalWebsite": "https://www.209nycdental.com/?utm_source=google&utm_medium=organic&utm_campaign=gmb",
+  "previewWebsite": null,
+  "searchKeyword": "dentist",
+  "searchLocation": "New York City",
+  "placeTypes": [
+    "dentist",
+    "medical_clinic",
+    "doctor",
+    "service",
+    "health",
+    "point_of_interest",
+    "establishment"
+  ],
+  "googlePrimaryType": "dentist",
+  "googlePrimaryTypeDisplayName": "Dentist",
+  "rawData": {
+    "id": "ChIJb-HkRuRYwokRF5qsEyxejyc",
+    "types": [
+      "dentist",
+      "medical_clinic",
+      "doctor",
+      "service",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ],
+    "websiteUri": "https://www.209nycdental.com/?utm_source=google&utm_medium=organic&utm_campaign=gmb",
+    "displayName": {
+      "text": "209 NYC Dental",
+      "languageCode": "en"
+    },
+    "primaryType": "dentist",
+    "googleMapsUri": "https://maps.google.com/?cid=2850600632550464023&g_mp=Cidnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaFRleHQQAhgEIAA",
+    "searchKeyword": "dentist",
+    "searchLocation": "New York City",
+    "formattedAddress": "209 E 56th St 1st floor, New York, NY 10022, USA",
+    "nationalPhoneNumber": "(212) 355-2290",
+    "primaryTypeDisplayName": {
+      "text": "Dentist",
+      "languageCode": "en-US"
+    },
+    "internationalPhoneNumber": "+1 212-355-2290"
+  }
+}
