@@ -1,0 +1,45 @@
+{
+  "name": "My NYC Dentist - 34th Street Dental",
+  "category": "Dentist",
+  "city": "New York City",
+  "address": "225 W 35th St #2, New York, NY 10001, USA",
+  "phone": "+1 212-564-8164",
+  "email": null,
+  "originalWebsite": "http://www.mynyc-dentist.com/",
+  "previewWebsite": null,
+  "searchKeyword": "dentist",
+  "searchLocation": "New York City",
+  "placeTypes": [
+    "dentist",
+    "health",
+    "point_of_interest",
+    "establishment"
+  ],
+  "googlePrimaryType": "dentist",
+  "googlePrimaryTypeDisplayName": "Dentist",
+  "rawData": {
+    "id": "ChIJex3pOaxZwokRqFhjqqYmnx0",
+    "types": [
+      "dentist",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ],
+    "websiteUri": "http://www.mynyc-dentist.com/",
+    "displayName": {
+      "text": "My NYC Dentist - 34th Street Dental",
+      "languageCode": "en"
+    },
+    "primaryType": "dentist",
+    "googleMapsUri": "https://maps.google.com/?cid=2134467245661968552&g_mp=Cidnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaFRleHQQAhgEIAA",
+    "searchKeyword": "dentist",
+    "searchLocation": "New York City",
+    "formattedAddress": "225 W 35th St #2, New York, NY 10001, USA",
+    "nationalPhoneNumber": "(212) 564-8164",
+    "primaryTypeDisplayName": {
+      "text": "Dentist",
+      "languageCode": "en-US"
+    },
+    "internationalPhoneNumber": "+1 212-564-8164"
+  }
+}
