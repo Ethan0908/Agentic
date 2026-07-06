@@ -4,6 +4,8 @@ set -euo pipefail
 CONTAINER="${1:-agentic-backend-1}"
 HOST_ENV_FILE="${PWD}/.env.local"
 CONTAINER_ENV_FILE="/app/.env.local"
+TMP_ENV_FILE="$(mktemp)"
+trap 'rm -f "$TMP_ENV_FILE"' EXIT
 
 if ! docker inspect "$CONTAINER" >/dev/null 2>&1; then
   echo "ERROR: Docker container not found: $CONTAINER"
@@ -28,29 +30,21 @@ mkdir -p "$(dirname "$HOST_ENV_FILE")"
 touch "$HOST_ENV_FILE"
 chmod 600 "$HOST_ENV_FILE"
 if grep -q '^OPENAI_API_KEY=' "$HOST_ENV_FILE"; then
-  tmp="$(mktemp)"
-  grep -v '^OPENAI_API_KEY=' "$HOST_ENV_FILE" > "$tmp"
-  cat "$tmp" > "$HOST_ENV_FILE"
-  rm -f "$tmp"
+  grep -v '^OPENAI_API_KEY=' "$HOST_ENV_FILE" > "$TMP_ENV_FILE"
+  cat "$TMP_ENV_FILE" > "$HOST_ENV_FILE"
 fi
 printf 'OPENAI_API_KEY=%s\n' "$OPENAI_API_KEY" >> "$HOST_ENV_FILE"
+chmod 600 "$HOST_ENV_FILE"
 
 echo "Wrote host env file: $HOST_ENV_FILE"
 
-docker exec -u root "$CONTAINER" sh -lc "touch '$CONTAINER_ENV_FILE' && chmod 600 '$CONTAINER_ENV_FILE'"
-docker exec -i -u root "$CONTAINER" sh -lc "
-set -e
-TMP=\$(mktemp)
-if [ -f '$CONTAINER_ENV_FILE' ]; then
-  grep -v '^OPENAI_API_KEY=' '$CONTAINER_ENV_FILE' > \$TMP || true
-fi
-cat > '$CONTAINER_ENV_FILE' <<'EOF'
-$(grep -v '^OPENAI_API_KEY=' "$HOST_ENV_FILE" || true)
-OPENAI_API_KEY=$OPENAI_API_KEY
-EOF
-chmod 600 '$CONTAINER_ENV_FILE'
-rm -f \$TMP
-"
+# Build a sanitized temp env file and copy it into the container. This avoids putting the key in docker exec args.
+grep -v '^OPENAI_API_KEY=' "$HOST_ENV_FILE" > "$TMP_ENV_FILE" || true
+printf 'OPENAI_API_KEY=%s\n' "$OPENAI_API_KEY" >> "$TMP_ENV_FILE"
+chmod 600 "$TMP_ENV_FILE"
+
+docker cp "$TMP_ENV_FILE" "$CONTAINER:/tmp/agentic-env.local"
+docker exec -u root "$CONTAINER" sh -lc "mv /tmp/agentic-env.local '$CONTAINER_ENV_FILE' && chmod 600 '$CONTAINER_ENV_FILE'"
 
 echo "Wrote container env file: $CONTAINER:$CONTAINER_ENV_FILE"
 
@@ -63,7 +57,7 @@ print("CODEX_COMMAND:", env.get("CODEX_COMMAND", "codex"))
 PY'
 
 echo "Testing Codex authentication inside backend container:"
-docker exec "$CONTAINER" sh -lc 'OPENAI_API_KEY=$(grep -m1 "^OPENAI_API_KEY=" /app/.env.local | cut -d= -f2-) codex exec --skip-git-repo-check "Reply with OK only."'
+docker exec "$CONTAINER" sh -lc 'set -a; . /app/.env.local; set +a; codex exec --skip-git-repo-check "Reply with OK only."'
 
 echo "Restarting backend container."
 docker restart "$CONTAINER" >/dev/null
