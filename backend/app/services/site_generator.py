@@ -1,19 +1,15 @@
 """Website generation service.
 
-GitHub is the source of truth for this file. The Raspberry Pi should run a direct
-copy of the repository instead of keeping separate local-only generator logic.
-
-The generator no longer relies on one template and one huge prompt. It now:
-1. normalizes business data,
-2. selects a design system,
-3. creates a compact site plan,
-4. writes business/design/section JSON into the generated site,
-5. optionally launches Claude Code project subagents for refinement.
+This is the main generator entrypoint used by the app/frontend. It no longer
+uses `site-template` as the default generation path. The default path delegates
+to the Codex scratch generator so Codex writes the actual Next.js website files
+for each business from a sector-specific brief.
 """
 
 from __future__ import annotations
 
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -73,11 +69,10 @@ def _list(value: Any, fallback: list[Any] | None = None) -> list[Any]:
 
 
 def normalize_business_profile(raw: Mapping[str, Any]) -> dict[str, Any]:
-    """Normalize loose lead data into the schema consumed by the template.
+    """Normalize loose lead data into the schema used by generation.
 
-    The template intentionally uses a small, stable schema so generated sites do
-    not break when the lead data is incomplete. Never invent hard proof such as
-    licences, awards, review counts, warranties, or years in business.
+    Never invent hard proof such as licences, awards, review counts,
+    warranties, availability, or years in business.
     """
 
     name = _string(raw.get("name") or raw.get("business_name"), "Local Service Company")
@@ -156,7 +151,10 @@ def normalize_business_profile(raw: Mapping[str, Any]) -> dict[str, Any]:
         "faqs": faqs,
         "offer": _string(raw.get("offer"), "Request a practical quote path based on your project details."),
         "guarantee": _string(raw.get("guarantee"), "Clear communication before work begins."),
-        "brandTone": _string(raw.get("brand_tone") or raw.get("brandTone"), "premium, direct, calm, trustworthy"),
+        "brandTone": _string(raw.get("brand_tone") or raw.get("brandTone"), "premium, direct, specific, trustworthy"),
+        "images": raw.get("images", {}) if isinstance(raw.get("images"), Mapping) else {},
+        "heroImage": _string(raw.get("heroImage") or raw.get("hero_image")),
+        "secondaryImage": _string(raw.get("secondaryImage") or raw.get("secondary_image")),
     }
 
 
@@ -165,11 +163,7 @@ def render_site_from_template(
     output_dir: Path | str = DEFAULT_OUTPUT_DIR,
     overwrite: bool = True,
 ) -> GeneratedSite:
-    """Copy the canonical template and write compact plan files.
-
-    This still uses one canonical codebase, but it is no longer one visual
-    template. `design.json` and `sections.json` select different patterns.
-    """
+    """Legacy fallback. Do not use as the default generator."""
 
     if not TEMPLATE_DIR.exists():
         raise SiteGenerationError(f"Missing canonical template folder: {TEMPLATE_DIR}")
@@ -188,22 +182,14 @@ def render_site_from_template(
 
     data_dir = target / "data"
     data_dir.mkdir(parents=True, exist_ok=True)
-    (data_dir / "business.json").write_text(
-        json.dumps(business, ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
-    )
+    (data_dir / "business.json").write_text(json.dumps(business, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     write_site_plan(target, site_plan)
 
-    return GeneratedSite(
-        slug=slug,
-        path=target,
-        business_name=business["name"],
-        design_system=site_plan.design["id"],
-    )
+    return GeneratedSite(slug=slug, path=target, business_name=business["name"], design_system=f"legacy-template:{site_plan.design['id']}")
 
 
 def build_codex_instruction(raw_business: Mapping[str, Any]) -> str:
-    """Build the exact instruction sent to Codex for optional refinement."""
+    """Build the legacy optional refinement instruction."""
 
     if not PROMPT_FILE.exists():
         raise SiteGenerationError(f"Missing prompt file: {PROMPT_FILE}")
@@ -223,11 +209,7 @@ def build_codex_instruction(raw_business: Mapping[str, Any]) -> str:
 
 
 def run_codex_refinement(site_path: Path, instruction: str, codex_command: str = "codex") -> None:
-    """Optionally run Codex inside a generated site folder.
-
-    `.env` and `.env.local` are loaded and forwarded to the Codex subprocess, so
-    local OAuth/API variables can be used without hardcoding secrets.
-    """
+    """Legacy optional Codex refinement for already-rendered sites."""
 
     if not site_path.exists():
         raise SiteGenerationError(f"Cannot refine missing site path: {site_path}")
@@ -241,20 +223,30 @@ def generate_site(
     refine_with_codex: bool = False,
     refine_with_claude: bool = False,
 ) -> GeneratedSite:
-    """Render a premium baseline website and optionally refine with agents."""
+    """Generate a website from scratch with Codex.
 
-    business = normalize_business_profile(raw_business)
-    site_plan = build_site_plan(business)
-    generated = render_site_from_template(business, output_dir=output_dir)
+    This function is intentionally the app-facing default. Existing frontend and
+    backend code should keep calling `generate_site()`, but the implementation is
+    now Codex-first. Set `WEBSITE_GENERATOR_MODE=legacy-template` only when you
+    deliberately want the old copy-template fallback for debugging.
+    """
 
-    if refine_with_codex:
-        instruction = build_codex_instruction(business)
-        run_codex_refinement(generated.path, instruction)
+    mode = os.environ.get("WEBSITE_GENERATOR_MODE", "codex-scratch").strip().lower()
+    if mode == "legacy-template":
+        business = normalize_business_profile(raw_business)
+        site_plan = build_site_plan(business)
+        generated = render_site_from_template(business, output_dir=output_dir)
+        if refine_with_codex:
+            instruction = build_codex_instruction(business)
+            run_codex_refinement(generated.path, instruction, codex_command=os.environ.get("CODEX_COMMAND", "codex"))
+        if refine_with_claude:
+            run_claude_refinement(site_plan, generated.path)
+        return generated
 
-    if refine_with_claude:
-        run_claude_refinement(site_plan, generated.path)
+    from .codex_scratch_generator import generate_site as generate_codex_site
 
-    return generated
+    codex_command = os.environ.get("CODEX_COMMAND", "/usr/bin/codex")
+    return generate_codex_site(raw_business, output_dir=output_dir, codex_command=codex_command)
 
 
 def build_claude_instruction_preview(raw_business: Mapping[str, Any], target_path: Path | str = "generated_sites/<slug>") -> str:
