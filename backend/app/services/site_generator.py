@@ -72,6 +72,77 @@ def _list(value: Any, fallback: list[Any] | None = None) -> list[Any]:
     return [value]
 
 
+def _public_image_url(value: Any) -> str:
+    text = _string(value)
+    if not text:
+        return ""
+    if not re.match(r"^https?://", text, flags=re.IGNORECASE):
+        return ""
+    if any(marker in text.lower() for marker in ("data:image", "base64,", "schema.org")):
+        return ""
+    return text
+
+
+def _photo_list(raw: Mapping[str, Any], business_name: str) -> list[dict[str, str]]:
+    """Return a small, safe list of public business photos.
+
+    Photos should come from lead data, the business's own site, or another public
+    source attached to that business. The generator should not invent stock photos
+    or hotlink unrelated imagery just to make the page look rich.
+    """
+
+    sources: list[Any] = []
+    for key in (
+        "photos",
+        "images",
+        "photo_urls",
+        "photoUrls",
+        "image_urls",
+        "imageUrls",
+        "gallery",
+        "business_photos",
+        "businessPhotos",
+        "website_images",
+        "websiteImages",
+        "scraped_images",
+        "scrapedImages",
+    ):
+        sources.extend(_list(raw.get(key)))
+
+    hero_candidates = _list(raw.get("hero_image") or raw.get("heroImage") or raw.get("cover_image") or raw.get("coverImage"))
+    sources = hero_candidates + sources
+
+    photos: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for item in sources:
+        if isinstance(item, Mapping):
+            url = _public_image_url(item.get("url") or item.get("src") or item.get("secure_url") or item.get("image"))
+            alt = _string(item.get("alt") or item.get("caption") or item.get("title"), f"{business_name} photo")
+            caption = _string(item.get("caption") or item.get("title"))
+            kind = _string(item.get("kind") or item.get("type"), "business-photo")
+            source = _string(item.get("source") or item.get("credit"))
+        else:
+            url = _public_image_url(item)
+            alt = f"{business_name} photo"
+            caption = ""
+            kind = "business-photo"
+            source = ""
+
+        if not url or url in seen:
+            continue
+        seen.add(url)
+        photo = {"url": url, "alt": alt, "kind": kind}
+        if caption:
+            photo["caption"] = caption
+        if source:
+            photo["source"] = source
+        photos.append(photo)
+        if len(photos) >= 8:
+            break
+
+    return photos
+
+
 def normalize_business_profile(raw: Mapping[str, Any]) -> dict[str, Any]:
     """Normalize loose lead data into the schema consumed by the template.
 
@@ -87,6 +158,7 @@ def normalize_business_profile(raw: Mapping[str, Any]) -> dict[str, Any]:
     phone = _string(raw.get("phone") or raw.get("phone_number"))
     email = _string(raw.get("email"))
     website = _string(raw.get("website") or raw.get("url"))
+    photos = _photo_list(raw, name)
 
     primary_cta = _string(raw.get("primary_cta") or raw.get("primaryCta"), "Request a quote")
     secondary_cta = _string(raw.get("secondary_cta") or raw.get("secondaryCta"), "See services")
@@ -149,6 +221,8 @@ def normalize_business_profile(raw: Mapping[str, Any]) -> dict[str, Any]:
                 "Get a clear next step, practical communication, and a cleaner service experience from first contact to finish.",
             ),
         },
+        "heroImage": photos[0] if photos else None,
+        "photos": photos,
         "proofPoints": proof_points,
         "services": services,
         "processSteps": process_steps,
@@ -218,7 +292,8 @@ def build_codex_instruction(raw_business: Mapping[str, Any]) -> str:
         f"{json.dumps(site_plan.as_dict(), ensure_ascii=False, separators=(',', ':'))}\n"
         "```\n\n"
         "Refine only where it improves quality, conversion, copy, responsiveness, performance, or maintainability. "
-        "Do not add unverifiable claims. Do not change deployment assumptions. Ensure the project builds.\n"
+        "Use supplied business photos when present; never add unrelated stock photos or unverifiable claims. "
+        "Do not change deployment assumptions. Ensure the project builds.\n"
     )
 
 

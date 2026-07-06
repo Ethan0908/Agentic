@@ -110,12 +110,51 @@ def detect_intent(business: Mapping[str, Any]) -> dict[str, bool]:
     emergency_terms = ("emergency", "urgent", "24/7", "same day", "sewer", "leak", "water damage", "locksmith", "towing")
     appointment_terms = ("clinic", "dental", "medical", "appointment", "therapy", "consultation", "spa", "salon")
     professional_terms = ("law", "legal", "finance", "accounting", "insurance", "mortgage", "advisory", "consulting")
+    image_led_terms = ("restaurant", "catering", "salon", "spa", "wedding", "photography", "interior", "design", "hotel", "fitness")
+    photos = business.get("photos") or []
     return {
         "emergency": any(term in blob for term in emergency_terms),
         "appointment": any(term in blob for term in appointment_terms),
         "professional": any(term in blob for term in professional_terms),
+        "imageLed": bool(photos) or any(term in blob for term in image_led_terms),
+        "hasPhotos": bool(photos),
         "hasReviews": bool(business.get("reviews")),
         "hasPhone": bool(business.get("phone")),
+    }
+
+
+def build_image_strategy(business: Mapping[str, Any], design: Mapping[str, Any], intent: Mapping[str, bool]) -> dict[str, Any]:
+    """Describe how the template and agents should use visuals.
+
+    This keeps image handling explicit so Codex/Claude do not randomly add stock
+    photos. If photos are missing, agents should improve composition with CSS and
+    request/collect real business images upstream.
+    """
+
+    photos = business.get("photos") or []
+    if photos:
+        return {
+            "mode": "use-supplied-business-photos",
+            "heroPhoto": photos[0],
+            "galleryCount": min(len(photos), 6),
+            "rules": [
+                "Use only photos supplied in data/business.json unless the user explicitly provides more.",
+                "Do not add unrelated stock photography.",
+                "Crop with object-fit cover; keep alt text descriptive and business-specific.",
+                "If a photo is low quality, keep it smaller and rely more on typography/cards.",
+            ],
+        }
+
+    fallback_mode = "graphic-editorial" if design.get("layoutPattern") != "gallery-bento" else "photo-requested"
+    return {
+        "mode": fallback_mode,
+        "heroPhoto": None,
+        "galleryCount": 0,
+        "rules": [
+            "No real business photos were supplied. Do not fabricate or hotlink stock photos.",
+            "Use layout, typography, cards, gradients, and service-specific microcopy to create quality.",
+            "If the scraper can collect public photos from the business's own website or profile, add them to business.photos before generation.",
+        ],
     }
 
 
@@ -123,6 +162,7 @@ def build_section_plan(business: Mapping[str, Any], design: Mapping[str, Any]) -
     registry = load_json(SECTION_REGISTRY_FILE)
     intent = detect_intent(business)
     layout = str(design.get("layoutPattern", "split-panel"))
+    image_strategy = build_image_strategy(business, design, intent)
 
     if intent["emergency"]:
         process = "rapid-response"
@@ -152,6 +192,7 @@ def build_section_plan(business: Mapping[str, Any], design: Mapping[str, Any]) -
         "processVariant": process,
         "proofOrExpectation": "reviews" if intent["hasReviews"] else "expectations",
         "finalCtaVariant": final_cta,
+        "imageStrategy": image_strategy,
         "sectionOrder": ["hero", "proof", "services", "decision", "process", "proofOrExpectation", "faq", "finalCta"],
         "intent": intent,
         "registryNotes": {
@@ -167,8 +208,9 @@ def build_section_plan(business: Mapping[str, Any], design: Mapping[str, Any]) -
 def build_agent_brief(business: Mapping[str, Any], design: Mapping[str, Any], sections: Mapping[str, Any]) -> dict[str, Any]:
     token_budget = load_json(TOKEN_BUDGET_FILE)
     budget = token_budget["default"]
+    image_strategy = sections.get("imageStrategy", {})
     return {
-        "briefVersion": 1,
+        "briefVersion": 2,
         "goal": "Create a premium, high-converting local business website without fake claims or generic AI copy.",
         "businessSummary": compact_text(
             {
@@ -186,12 +228,14 @@ def build_agent_brief(business: Mapping[str, Any], design: Mapping[str, Any], se
                 "label": design.get("label"),
                 "visualLanguage": design.get("visualLanguage"),
                 "layoutPattern": design.get("layoutPattern"),
+                "imageStrategy": image_strategy,
             },
             budget["designPlanMaxChars"],
         ),
         "sectionSummary": compact_text(sections, budget["copyPlanMaxChars"]),
         "hardRules": [
             "Do not invent awards, licences, review counts, guarantees, years in business, or emergency availability.",
+            "Use supplied business photos when present; do not use unrelated stock images.",
             "Prefer short specific copy over vague promotional copy.",
             "Preserve buildability and Vercel deployment assumptions.",
             "Fix mobile first: no horizontal overflow, readable text, obvious CTA.",
@@ -221,7 +265,7 @@ def build_claude_agent_prompt(site_plan: SitePlan, target_path: Path) -> str:
 
     budget = load_json(TOKEN_BUDGET_FILE)["default"]
     plan_json = compact_json(site_plan.as_dict(), max_chars=budget["agentPromptMaxChars"])
-    return f"""Improve this generated website using the project Claude agents.\n\nTarget folder: {target_path}\nCompact site plan JSON: {plan_json}\n\nWorkflow:\n1. Use @business-profiler to verify the brief and conversion intent.\n2. Use @brand-director to refine the visual direction only if the selected design system is weak.\n3. Use @copy-polisher to remove generic copy and improve CTA clarity.\n4. Use @frontend-refiner to improve React/CSS only where it materially improves quality.\n5. Use @visual-qa to review mobile/desktop quality and list fixes.\n\nConstraints:\n- Keep changes minimal and high leverage.\n- Do not paste whole files into agent prompts unless necessary.\n- Do not invent claims.\n- Run the build if dependencies are installed.\n"""
+    return f"""Improve this generated website using the project Claude agents.\n\nTarget folder: {target_path}\nCompact site plan JSON: {plan_json}\n\nWorkflow:\n1. Use @business-profiler to verify the brief, vertical, image availability, and safe claims.\n2. Use @conversion-strategist to check the section order, CTA hierarchy, and objection handling.\n3. Use @brand-director to refine the visual direction only if the selected design system is weak.\n4. Use @copy-polisher to remove generic copy and improve CTA clarity.\n5. Use @frontend-refiner to improve React/CSS only where it materially improves quality.\n6. Use @visual-qa to review mobile/desktop quality and list fixes.\n\nConstraints:\n- Keep changes minimal and high leverage.\n- Use supplied business photos when present; do not add unrelated stock photos.\n- Do not paste whole files into agent prompts unless necessary.\n- Do not invent claims.\n- Run the build if dependencies are installed.\n"""
 
 
 def run_claude_refinement(site_plan: SitePlan, target_path: Path, claude_command: str = "claude") -> None:
