@@ -63,25 +63,23 @@ fi
 '
 
 echo
-echo "== Copying host Codex auth/config into backend container =="
-docker exec -u root "$CONTAINER" sh -lc "rm -rf '$CONTAINER_HOME/.codex' '$CONTAINER_HOME/.codex.bak'"
-docker cp "$HOST_CODEX_DIR" "$CONTAINER:$CONTAINER_HOME/.codex"
+echo "== Merging host Codex auth/config into backend container =="
+# Do not remove HOME/.codex. Codex may keep tmp mounts/files there, causing "Device or resource busy".
+docker exec -u root "$CONTAINER" sh -lc "mkdir -p '$CONTAINER_HOME/.codex' '$CONTAINER_HOME/.codex-host-copy'"
+docker cp "$HOST_CODEX_DIR/." "$CONTAINER:$CONTAINER_HOME/.codex-host-copy/"
 
 docker exec -u root "$CONTAINER" sh -lc "
 set -e
-# docker cp can behave differently when the destination exists across Docker versions.
-# Ensure the final layout is always HOME/.codex/<files>, not HOME/.codex/.codex/<files>.
-if [ -d '$CONTAINER_HOME/.codex/.codex' ]; then
-  mv '$CONTAINER_HOME/.codex' '$CONTAINER_HOME/.codex.bak'
-  mv '$CONTAINER_HOME/.codex.bak/.codex' '$CONTAINER_HOME/.codex'
-  rm -rf '$CONTAINER_HOME/.codex.bak'
-fi
 mkdir -p '$CONTAINER_HOME/.codex'
-# Some Codex installs tolerate a missing config, but this app checks/runs more reliably with it present.
+# Merge files from the host copy into the live Codex home without deleting busy runtime dirs.
+if [ -d '$CONTAINER_HOME/.codex-host-copy' ]; then
+  cp -a '$CONTAINER_HOME/.codex-host-copy/.' '$CONTAINER_HOME/.codex/' 2>/dev/null || true
+  rm -rf '$CONTAINER_HOME/.codex-host-copy' 2>/dev/null || true
+fi
 [ -f '$CONTAINER_HOME/.codex/config.toml' ] || touch '$CONTAINER_HOME/.codex/config.toml'
 chown -R '$CONTAINER_USER:$CONTAINER_USER' '$CONTAINER_HOME/.codex' 2>/dev/null || chown -R '$CONTAINER_USER' '$CONTAINER_HOME/.codex'
-chmod 700 '$CONTAINER_HOME/.codex'
-chmod 600 '$CONTAINER_HOME/.codex/config.toml'
+chmod 700 '$CONTAINER_HOME/.codex' || true
+chmod 600 '$CONTAINER_HOME/.codex/config.toml' || true
 "
 
 echo
@@ -93,6 +91,7 @@ codex --version
 ls -ld "$HOME/.codex"
 ls -la "$HOME/.codex" | sed -n "1,30p"
 test -f "$HOME/.codex/config.toml"
+codex exec --skip-git-repo-check "Reply with OK only." || true
 '
 
 echo
