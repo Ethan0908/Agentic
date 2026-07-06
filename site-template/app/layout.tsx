@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
 import './globals.css';
 import './variants.css';
+import './photos.css';
 import business from '../data/business.json';
 
 export const metadata: Metadata = {
