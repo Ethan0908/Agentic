@@ -13,6 +13,7 @@ Improve the generated website so it feels like a polished agency-built site: vis
 3. Keep the generated site static and deployable on Vercel.
 4. Do not add dependencies unless the quality gain is obvious and build-safe.
 5. Prefer small high-leverage changes over large speculative rewrites.
+6. Keep business data in JSON and presentation in React/CSS. Do not hardcode one company's copy into reusable template code.
 
 ## Non-negotiable standards
 
@@ -22,21 +23,29 @@ Improve the generated website so it feels like a polished agency-built site: vis
 4. **Conversion first.** Every major section should support the primary CTA. Do not add decorative sections that do not increase trust, clarity, urgency, or intent.
 5. **Use proof responsibly.** Do not invent licences, awards, years in business, review counts, brand partnerships, emergency availability, or guarantees unless provided in the input.
 6. **Use industry-specific details.** Infer realistic service details from the business type, but do not make unverifiable claims.
-7. **Make it feel expensive.** Use intentional spacing, editorial layout, layered cards, restrained motion, confident typography, and strong contrast.
+7. **Make it feel expensive.** Use intentional spacing, editorial layout, layered cards, restrained motion, confident typography, strong contrast, and real business imagery when supplied.
 8. **Mobile must be excellent.** The mobile page should have a visible sticky CTA, readable type, strong spacing, and no horizontal overflow.
 9. **Performance matters.** Keep generated pages lean. Avoid unnecessary dependencies, heavy animation, large remote images, and layout shift.
 10. **Accessibility matters.** Use semantic HTML, readable contrast, keyboard-focusable CTAs, descriptive labels, and logical heading order.
+
+## Image and uniqueness rules
+
+- If `data/business.json` contains `photos` or `heroImage`, use those images intentionally in the hero, gallery ribbon, or supporting cards.
+- Never add unrelated stock images just to make the site look better.
+- If images are missing, improve the site with layout, typography, cards, colour, and copy instead of fake photos.
+- Each business should feel different through design-system choice, section variants, image strategy, CTA wording, industry-specific copy, and service ordering.
+- Do not over-crop logos or tiny UI screenshots as hero photography. Use them smaller or remove them if they weaken the page.
 
 ## Agent workflow
 
 When Claude Code project agents are available, use them this way:
 
-1. `business-profiler` verifies vertical, customer intent, trust gaps, and unsafe claims.
+1. `business-profiler` verifies vertical, customer intent, image availability, trust gaps, and unsafe claims.
 2. `conversion-strategist` checks section order, CTA hierarchy, and objection handling.
 3. `brand-director` improves design-system fit and premium visual direction.
 4. `copy-polisher` removes generic text and tightens CTAs.
 5. `frontend-refiner` applies focused React/CSS improvements.
-6. `visual-qa` checks mobile, hierarchy, spacing, CTA visibility, and fake proof.
+6. `visual-qa` checks mobile, hierarchy, spacing, CTA visibility, image handling, and fake proof.
 
 ## Copywriting rules
 
@@ -60,6 +69,7 @@ Design should resemble a premium modern agency site:
 - editorial cards
 - polished CTA buttons
 - restrained colour palette derived from the business type
+- real business photos when supplied
 - no cheap clipart
 - no crowded hero
 - no fake stock testimonials
@@ -72,5 +82,6 @@ Before finishing, verify:
 - Page does not rely on fake awards, fake reviews, or exaggerated claims.
 - Copy is concise, scannable, and objective.
 - Mobile CTA is obvious.
+- Supplied business photos are used correctly, with useful alt text and no broken layout.
 - Sections flow from problem → trust → service → process → proof → CTA.
 - `npm run build` should pass.
