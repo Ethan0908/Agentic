@@ -21,6 +21,14 @@ type Faq = {
   answer: string;
 };
 
+type BusinessPhoto = {
+  url: string;
+  alt?: string;
+  caption?: string;
+  kind?: string;
+  source?: string;
+};
+
 function phoneHref(phone?: string) {
   if (!phone) return '#contact';
   return `tel:${phone.replace(/[^+\d]/g, '')}`;
@@ -42,6 +50,20 @@ function reviewList(): Review[] {
 
 function faqList(): Faq[] {
   return business.faqs || [];
+}
+
+function photoList(): BusinessPhoto[] {
+  return ((business.photos || []) as BusinessPhoto[]).filter((photo) => Boolean(photo.url)).slice(0, 6);
+}
+
+function heroPhoto(photos: BusinessPhoto[]): BusinessPhoto | null {
+  const candidate = business.heroImage as BusinessPhoto | null;
+  if (candidate?.url) return candidate;
+  return photos[0] || null;
+}
+
+function photoAlt(photo: BusinessPhoto, fallback: string) {
+  return photo.alt || photo.caption || fallback;
 }
 
 function themeVars(): CSSProperties {
@@ -103,9 +125,12 @@ export default function Home() {
   const reviews = reviewList();
   const services = serviceList();
   const process = processLabels();
+  const photos = photoList();
+  const mainPhoto = heroPhoto(photos);
+  const galleryPhotos = photos.filter((photo) => photo.url !== mainPhoto?.url).slice(0, 4);
 
   return (
-    <main style={themeVars()} data-theme={design.id} data-variant={sections.heroVariant}>
+    <main style={themeVars()} data-theme={design.id} data-variant={sections.heroVariant} data-has-photos={photos.length ? 'true' : 'false'}>
       <div className="page-shell">
         <header className="site-header">
           <a className="brand" href="#top" aria-label={`${business.name} home`}>
@@ -136,20 +161,29 @@ export default function Home() {
             <p className="action-note">{actionSubtext()}</p>
           </div>
 
-          <aside className="hero-panel" aria-label="Service summary">
-            <div className="panel-kicker">{panelLabel()}</div>
-            <h2>{panelHeading()}</h2>
-            <div className="panel-divider" />
-            <div className="panel-grid">
-              {process.map(([number, title, description]) => (
-                <div key={title}>
-                  <span>{number}</span>
-                  <strong>{title}</strong>
-                  <p>{description}</p>
-                </div>
-              ))}
-            </div>
-          </aside>
+          <div className="hero-side">
+            {mainPhoto ? (
+              <figure className="hero-photo-card">
+                <img src={mainPhoto.url} alt={photoAlt(mainPhoto, `${business.name} ${business.businessType}`)} />
+                {mainPhoto.caption ? <figcaption>{mainPhoto.caption}</figcaption> : null}
+              </figure>
+            ) : null}
+
+            <aside className="hero-panel" aria-label="Service summary">
+              <div className="panel-kicker">{panelLabel()}</div>
+              <h2>{panelHeading()}</h2>
+              <div className="panel-divider" />
+              <div className="panel-grid">
+                {process.map(([number, title, description]) => (
+                  <div key={title}>
+                    <span>{number}</span>
+                    <strong>{title}</strong>
+                    <p>{description}</p>
+                  </div>
+                ))}
+              </div>
+            </aside>
+          </div>
         </section>
 
         <section className={`proof-strip proof-${sections.proofVariant}`} aria-label="Business proof points">
@@ -160,6 +194,17 @@ export default function Home() {
             </div>
           ))}
         </section>
+
+        {galleryPhotos.length ? (
+          <section className="photo-ribbon" aria-label={`${business.name} photos`}>
+            {galleryPhotos.map((photo, index) => (
+              <figure key={`${photo.url}-${index}`}>
+                <img src={photo.url} alt={photoAlt(photo, `${business.name} project photo ${index + 1}`)} />
+                {photo.caption ? <figcaption>{photo.caption}</figcaption> : null}
+              </figure>
+            ))}
+          </section>
+        ) : null}
 
         <section id="services" className="section-pad services-section">
           <div className="section-heading-row">
