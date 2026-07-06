@@ -69,9 +69,27 @@ If there is no `/home/ethan/.codex/auth.json`, log in to Codex from the Pi user 
 
 Do not copy `auth.json` into GitHub, do not paste it into ChatGPT, and do not bake it into a Docker image.
 
+### Repair Codex folder ownership if needed
+
+If the Pi says `Permission denied` when the `ethan` user checks `/home/ethan/.codex`, the folder is probably owned by `root` or has bad mode bits. That often happens after running Codex with `sudo`.
+
+Run this on the Pi host:
+
+```bash
+sudo ls -ld /home/ethan/.codex /home/ethan/.codex/auth.json
+sudo chown -R ethan:ethan /home/ethan/.codex
+chmod 700 /home/ethan/.codex
+chmod 600 /home/ethan/.codex/auth.json
+ls -la /home/ethan/.codex
+```
+
+After this, run Codex as `ethan`, not with `sudo`.
+
 ### Mount Codex auth into a backend container
 
-If you use `docker run`, add this mount to the backend container:
+`-v /home/ethan/.codex:/root/.codex` is not a standalone shell command. It is an argument to `docker run`.
+
+If you use `docker run`, add this mount to the backend container command:
 
 ```bash
 -v /home/ethan/.codex:/root/.codex
