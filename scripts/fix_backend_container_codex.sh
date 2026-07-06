@@ -17,6 +17,10 @@ if [ ! -d "$HOST_CODEX_DIR" ]; then
   exit 1
 fi
 
+echo "== Host Codex files =="
+ls -la "$HOST_CODEX_DIR"
+echo
+
 echo "== Container identity =="
 CONTAINER_USER="$(docker exec "$CONTAINER" sh -lc 'id -un')"
 CONTAINER_HOME="$(docker exec "$CONTAINER" sh -lc 'printf "%s" "$HOME"')"
@@ -60,14 +64,36 @@ fi
 
 echo
 echo "== Copying host Codex auth/config into backend container =="
-docker exec -u root "$CONTAINER" sh -lc "rm -rf '$CONTAINER_HOME/.codex'"
+docker exec -u root "$CONTAINER" sh -lc "rm -rf '$CONTAINER_HOME/.codex' '$CONTAINER_HOME/.codex.bak'"
 docker cp "$HOST_CODEX_DIR" "$CONTAINER:$CONTAINER_HOME/.codex"
-docker exec -u root "$CONTAINER" sh -lc "chown -R '$CONTAINER_USER:$CONTAINER_USER' '$CONTAINER_HOME/.codex' 2>/dev/null || chown -R '$CONTAINER_USER' '$CONTAINER_HOME/.codex'"
-docker exec -u root "$CONTAINER" sh -lc "chmod 700 '$CONTAINER_HOME/.codex'; [ -f '$CONTAINER_HOME/.codex/config.toml' ] && chmod 600 '$CONTAINER_HOME/.codex/config.toml' || true"
+
+docker exec -u root "$CONTAINER" sh -lc "
+set -e
+# docker cp can behave differently when the destination exists across Docker versions.
+# Ensure the final layout is always HOME/.codex/<files>, not HOME/.codex/.codex/<files>.
+if [ -d '$CONTAINER_HOME/.codex/.codex' ]; then
+  mv '$CONTAINER_HOME/.codex' '$CONTAINER_HOME/.codex.bak'
+  mv '$CONTAINER_HOME/.codex.bak/.codex' '$CONTAINER_HOME/.codex'
+  rm -rf '$CONTAINER_HOME/.codex.bak'
+fi
+mkdir -p '$CONTAINER_HOME/.codex'
+# Some Codex installs tolerate a missing config, but this app checks/runs more reliably with it present.
+[ -f '$CONTAINER_HOME/.codex/config.toml' ] || touch '$CONTAINER_HOME/.codex/config.toml'
+chown -R '$CONTAINER_USER:$CONTAINER_USER' '$CONTAINER_HOME/.codex' 2>/dev/null || chown -R '$CONTAINER_USER' '$CONTAINER_HOME/.codex'
+chmod 700 '$CONTAINER_HOME/.codex'
+chmod 600 '$CONTAINER_HOME/.codex/config.toml'
+"
 
 echo
 echo "== Testing Codex inside backend container =="
-docker exec "$CONTAINER" sh -lc 'command -v codex && codex --version && ls -ld "$HOME/.codex" && [ -f "$HOME/.codex/config.toml" ] && ls -l "$HOME/.codex/config.toml" || true'
+docker exec "$CONTAINER" sh -lc '
+set -e
+command -v codex
+codex --version
+ls -ld "$HOME/.codex"
+ls -la "$HOME/.codex" | sed -n "1,30p"
+test -f "$HOME/.codex/config.toml"
+'
 
 echo
 echo "== Restarting backend container =="
@@ -75,4 +101,4 @@ docker restart "$CONTAINER" >/dev/null
 
 echo
 echo "Done. Test the generator again from the frontend."
-echo "If generation still fails, run: docker logs --tail=200 $CONTAINER"
+echo "If generation still fails, run: docker logs --tail=300 $CONTAINER"
