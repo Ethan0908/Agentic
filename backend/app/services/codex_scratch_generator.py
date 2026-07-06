@@ -87,17 +87,58 @@ After creating the files, run npm run build if dependencies are installed. Fix a
 """
 
 
+def codex_candidates(command: str) -> list[str]:
+    if "/" in command:
+        return [command]
+    candidates = [
+        shutil.which(command),
+        str(Path.home() / ".npm-global" / "bin" / command),
+        "/usr/bin/codex" if command == "codex" else None,
+        "/bin/codex" if command == "codex" else None,
+        str(Path.home() / ".local" / "bin" / command),
+    ]
+    seen: set[str] = set()
+    out: list[str] = []
+    for item in candidates:
+        if not item or item in seen:
+            continue
+        seen.add(item)
+        out.append(item)
+    return out
+
+
+def executable_works(path: str) -> tuple[bool, str]:
+    if not Path(path).exists():
+        return False, "not found"
+    if not os.access(path, os.X_OK):
+        return False, "not executable"
+    try:
+        result = subprocess.run([path, "--version"], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, timeout=12, env=load_local_env())
+    except OSError as exc:
+        return False, f"cannot execute: {exc}"
+    except subprocess.TimeoutExpired:
+        return False, "timed out running --version"
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout or "unknown error").strip().splitlines()[:2]
+        return False, "; ".join(detail) or f"exit code {result.returncode}"
+    return True, (result.stdout or result.stderr).strip()
+
+
 def resolve_executable(command: str) -> str:
-    found = shutil.which(command)
-    if not found:
-        raise RuntimeError(
-            f"Missing required CLI: {command}\n"
-            "Install and log in to Codex on the Raspberry Pi first, then rerun this command.\n"
-            "Also check that your PATH includes the directory where Codex is installed."
-        )
-    if not os.access(found, os.X_OK):
-        raise RuntimeError(f"Found {command} at {found}, but it is not executable. Run: chmod +x {found}")
-    return found
+    failures: list[str] = []
+    for candidate in codex_candidates(command):
+        ok, detail = executable_works(candidate)
+        if ok:
+            if candidate != shutil.which(command):
+                print(f"Using working Codex executable: {candidate}")
+            return candidate
+        failures.append(f"- {candidate}: {detail}")
+    raise RuntimeError(
+        f"No working executable found for {command}.\n"
+        + "\n".join(failures)
+        + "\n\nYour first PATH result may be a broken standalone binary for the Pi. "
+        "Try rerunning with `--codex-command /usr/bin/codex`, or remove/rename the broken ~/.local/bin/codex symlink."
+    )
 
 
 def run_command(command: list[str], cwd: Path) -> None:
