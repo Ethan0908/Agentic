@@ -1,0 +1,205 @@
+{
+  "plumbing": {
+    "keywords": ["plumb", "sewer", "drain", "pipe", "leak", "water heater", "fixture"],
+    "label": "Industrial plumbing",
+    "layout": "trade-utility",
+    "radius": "6px",
+    "cardRadius": "4px",
+    "density": "compact",
+    "headlineStyle": "bold sans",
+    "palette": {
+      "bg": "#f3f4f1",
+      "ink": "#111827",
+      "muted": "#59616d",
+      "panel": "#ffffff",
+      "panelDark": "#172033",
+      "accent": "#f59e0b",
+      "accentDark": "#92400e",
+      "line": "rgba(17,24,39,0.16)"
+    },
+    "images": {
+      "hero": "https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?auto=format&fit=crop&w=1600&q=80",
+      "secondary": "https://images.unsplash.com/photo-1621905252507-b35492cc74b4?auto=format&fit=crop&w=1200&q=80"
+    },
+    "copyFrame": {
+      "heroPanelLabel": "Job intake",
+      "serviceIntro": "Plumbing pages should feel practical, direct, and job-ready. The visitor should immediately see what issue can be handled and how to request help.",
+      "proofHeading": "Built for practical plumbing requests.",
+      "finalHeading": "Send the issue, location, and timing."
+    }
+  },
+  "hvac": {
+    "keywords": ["hvac", "heating", "cooling", "furnace", "air conditioner", "ac repair", "heat pump"],
+    "label": "Mechanical comfort systems",
+    "layout": "mechanical-grid",
+    "radius": "10px",
+    "cardRadius": "8px",
+    "density": "balanced",
+    "headlineStyle": "technical sans",
+    "palette": {
+      "bg": "#eef3f7",
+      "ink": "#0f172a",
+      "muted": "#5b6778",
+      "panel": "#ffffff",
+      "panelDark": "#102033",
+      "accent": "#0ea5e9",
+      "accentDark": "#075985",
+      "line": "rgba(15,23,42,0.14)"
+    },
+    "images": {
+      "hero": "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?auto=format&fit=crop&w=1600&q=80",
+      "secondary": "https://images.unsplash.com/photo-1581092160562-40aa08e78837?auto=format&fit=crop&w=1200&q=80"
+    },
+    "copyFrame": {
+      "heroPanelLabel": "System request",
+      "serviceIntro": "HVAC pages should feel technical, calm, and organized around system diagnosis, comfort, and scheduling.",
+      "proofHeading": "Clear mechanical next steps.",
+      "finalHeading": "Describe the system and the symptom."
+    }
+  },
+  "electrical": {
+    "keywords": ["electric", "electrical", "wiring", "panel", "breaker", "lighting", "outlet"],
+    "label": "Electrical service",
+    "layout": "sharp-safety",
+    "radius": "4px",
+    "cardRadius": "4px",
+    "density": "compact",
+    "headlineStyle": "bold sans",
+    "palette": {
+      "bg": "#f7f5ef",
+      "ink": "#111111",
+      "muted": "#5f5a50",
+      "panel": "#fffdf6",
+      "panelDark": "#181818",
+      "accent": "#facc15",
+      "accentDark": "#854d0e",
+      "line": "rgba(17,17,17,0.18)"
+    },
+    "images": {
+      "hero": "https://images.unsplash.com/photo-1621905252507-b35492cc74b4?auto=format&fit=crop&w=1600&q=80",
+      "secondary": "https://images.unsplash.com/photo-1565608087341-404b25492fee?auto=format&fit=crop&w=1200&q=80"
+    },
+    "copyFrame": {
+      "heroPanelLabel": "Electrical request",
+      "serviceIntro": "Electrical pages should feel sharp, safety-oriented, and direct. Avoid soft luxury styling.",
+      "proofHeading": "Clear electrical service path.",
+      "finalHeading": "Share the electrical issue clearly."
+    }
+  },
+  "clinic": {
+    "keywords": ["clinic", "dental", "medical", "therapy", "chiropractor", "wellness", "doctor"],
+    "label": "Clinical trust",
+    "layout": "calm-care",
+    "radius": "22px",
+    "cardRadius": "18px",
+    "density": "airy",
+    "headlineStyle": "soft serif",
+    "palette": {
+      "bg": "#eef7f4",
+      "ink": "#10231f",
+      "muted": "#62766f",
+      "panel": "#ffffff",
+      "panelDark": "#12342f",
+      "accent": "#2f8f83",
+      "accentDark": "#17635b",
+      "line": "rgba(16,35,31,0.12)"
+    },
+    "images": {
+      "hero": "https://images.unsplash.com/photo-1505751172876-fa1923c5c528?auto=format&fit=crop&w=1600&q=80",
+      "secondary": "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&w=1200&q=80"
+    },
+    "copyFrame": {
+      "heroPanelLabel": "Appointment path",
+      "serviceIntro": "Clinical pages should feel calm, clean, and reassuring, with more whitespace and softer geometry.",
+      "proofHeading": "A calmer first step.",
+      "finalHeading": "Start with the question or appointment need."
+    }
+  },
+  "professional": {
+    "keywords": ["law", "legal", "accounting", "finance", "insurance", "mortgage", "consulting", "advisor"],
+    "label": "Professional advisory",
+    "layout": "editorial-advisory",
+    "radius": "2px",
+    "cardRadius": "2px",
+    "density": "balanced",
+    "headlineStyle": "editorial serif",
+    "palette": {
+      "bg": "#f4f1ea",
+      "ink": "#121620",
+      "muted": "#626b79",
+      "panel": "#fffdf8",
+      "panelDark": "#111827",
+      "accent": "#6f5f45",
+      "accentDark": "#433827",
+      "line": "rgba(18,22,32,0.16)"
+    },
+    "images": {
+      "hero": "https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=1600&q=80",
+      "secondary": "https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=1200&q=80"
+    },
+    "copyFrame": {
+      "heroPanelLabel": "Decision path",
+      "serviceIntro": "Professional pages should feel serious, editorial, and credibility-driven, not bubbly.",
+      "proofHeading": "A clearer advisory path.",
+      "finalHeading": "Describe the situation and next decision."
+    }
+  },
+  "boutique": {
+    "keywords": ["spa", "salon", "interior", "design", "wedding", "hotel", "restaurant", "catering", "photography"],
+    "label": "Boutique visual",
+    "layout": "gallery-led",
+    "radius": "28px",
+    "cardRadius": "24px",
+    "density": "airy",
+    "headlineStyle": "luxury serif",
+    "palette": {
+      "bg": "#f7efe8",
+      "ink": "#241915",
+      "muted": "#806b60",
+      "panel": "#fffaf6",
+      "panelDark": "#2d1e1a",
+      "accent": "#b17b61",
+      "accentDark": "#704331",
+      "line": "rgba(36,25,21,0.12)"
+    },
+    "images": {
+      "hero": "https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?auto=format&fit=crop&w=1600&q=80",
+      "secondary": "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1200&q=80"
+    },
+    "copyFrame": {
+      "heroPanelLabel": "Experience",
+      "serviceIntro": "Boutique pages should lean on visuals, mood, whitespace, and premium service packaging.",
+      "proofHeading": "A more visual first impression.",
+      "finalHeading": "Start with the experience you want."
+    }
+  },
+  "software": {
+    "keywords": ["software", "saas", "ai", "app", "marketing", "agency", "technology", "automation"],
+    "label": "Modern bento",
+    "layout": "productized-bento",
+    "radius": "18px",
+    "cardRadius": "16px",
+    "density": "balanced",
+    "headlineStyle": "modern sans",
+    "palette": {
+      "bg": "#080b12",
+      "ink": "#f6f8fb",
+      "muted": "#aab3c2",
+      "panel": "#111827",
+      "panelDark": "#05070c",
+      "accent": "#8da2ff",
+      "accentDark": "#5668d9",
+      "line": "rgba(246,248,251,0.14)"
+    },
+    "images": {
+      "hero": "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=1600&q=80",
+      "secondary": "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=80"
+    },
+    "copyFrame": {
+      "heroPanelLabel": "Growth system",
+      "serviceIntro": "Software pages should feel modern, productized, and system-driven with dense bento blocks.",
+      "proofHeading": "Designed around the offer.",
+      "finalHeading": "Share the goal and current bottleneck."
+    }
+  }
+}
