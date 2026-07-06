@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import socket
 import subprocess
@@ -86,8 +87,23 @@ After creating the files, run npm run build if dependencies are installed. Fix a
 """
 
 
+def resolve_executable(command: str) -> str:
+    found = shutil.which(command)
+    if not found:
+        raise RuntimeError(
+            f"Missing required CLI: {command}\n"
+            "Install and log in to Codex on the Raspberry Pi first, then rerun this command.\n"
+            "Also check that your PATH includes the directory where Codex is installed."
+        )
+    if not os.access(found, os.X_OK):
+        raise RuntimeError(f"Found {command} at {found}, but it is not executable. Run: chmod +x {found}")
+    return found
+
+
 def run_command(command: list[str], cwd: Path) -> None:
-    print(f"\n▶ {' '.join(command)}\n  cwd: {cwd}")
+    if command[0] not in {sys.executable, "npm", "node"}:
+        command[0] = resolve_executable(command[0])
+    print(f"\n▶ {' '.join(command[:2])} ...\n  cwd: {cwd}")
     subprocess.run(command, cwd=cwd, check=True, text=True, env=load_local_env())
 
 
@@ -157,26 +173,30 @@ def main() -> int:
     parser.add_argument("--port", default="3010")
     args = parser.parse_args()
 
-    profile_path = args.profile if args.profile.is_absolute() else Path.cwd() / args.profile
-    results: list[GeneratedSite] = []
-    for item in load_profiles(profile_path):
-        raw = json.loads(item.read_text(encoding="utf-8"))
-        site = generate_site(raw, output_dir=args.output_dir, codex_command=args.codex_command)
-        post_process(site.path, install=not args.skip_install, build=not args.skip_build, quality=not args.skip_quality)
-        results.append(site)
+    try:
+        profile_path = args.profile if args.profile.is_absolute() else Path.cwd() / args.profile
+        results: list[GeneratedSite] = []
+        for item in load_profiles(profile_path):
+            raw = json.loads(item.read_text(encoding="utf-8"))
+            site = generate_site(raw, output_dir=args.output_dir, codex_command=args.codex_command)
+            post_process(site.path, install=not args.skip_install, build=not args.skip_build, quality=not args.skip_quality)
+            results.append(site)
 
-    print(json.dumps([
-        {"slug": site.slug, "path": str(site.path), "businessName": site.business_name, "designSystem": site.design_system}
-        for site in results
-    ], indent=2))
+        print(json.dumps([
+            {"slug": site.slug, "path": str(site.path), "businessName": site.business_name, "designSystem": site.design_system}
+            for site in results
+        ], indent=2))
 
-    if args.preview:
-        if len(results) != 1:
-            raise RuntimeError("Preview supports exactly one lead at a time.")
-        print(f"Local URL:   http://localhost:{args.port}")
-        print(f"Network URL: http://{detect_lan_ip()}:{args.port}")
-        run_command(["npm", "run", "dev", "--", "--hostname", args.host, "--port", args.port], cwd=results[0].path)
-    return 0
+        if args.preview:
+            if len(results) != 1:
+                raise RuntimeError("Preview supports exactly one lead at a time.")
+            print(f"Local URL:   http://localhost:{args.port}")
+            print(f"Network URL: http://{detect_lan_ip()}:{args.port}")
+            run_command(["npm", "run", "dev", "--", "--hostname", args.host, "--port", args.port], cwd=results[0].path)
+        return 0
+    except Exception as exc:
+        print(f"\n❌ {exc}", file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":
