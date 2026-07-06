@@ -8,12 +8,36 @@ echo "PATH: $PATH"
 echo
 
 echo "command -v codex:"
-command -v codex || true
+CODEX_PATH="$(command -v codex || true)"
+echo "${CODEX_PATH:-not found}"
 echo
 
 echo "type -a codex:"
 type -a codex 2>/dev/null || true
 echo
+
+if [ -n "${CODEX_PATH:-}" ]; then
+  echo "selected codex path:"
+  ls -la "$CODEX_PATH" || true
+  echo
+
+  echo "selected codex symlink target:"
+  readlink -f "$CODEX_PATH" || true
+  echo
+
+  REAL_CODEX="$(readlink -f "$CODEX_PATH" || true)"
+  if [ -n "${REAL_CODEX:-}" ]; then
+    echo "real codex target details:"
+    ls -la "$REAL_CODEX" || true
+    file "$REAL_CODEX" 2>/dev/null || true
+    namei -l "$REAL_CODEX" 2>/dev/null || true
+    echo
+  fi
+
+  echo "codex --version direct test:"
+  "$CODEX_PATH" --version || true
+  echo
+fi
 
 echo "npm global bin/root:"
 npm bin -g 2>/dev/null || true
@@ -27,7 +51,7 @@ for p in \
   "$HOME/.nvm/versions/node"/*/bin/codex \
   "/usr/local/bin/codex" \
   "/usr/bin/codex" \
-  "/opt/homebrew/bin/codex"; do
+  "/bin/codex"; do
   [ -e "$p" ] && ls -la "$p"
 done
 
