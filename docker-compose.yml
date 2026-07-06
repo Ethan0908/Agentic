@@ -11,7 +11,8 @@ services:
       NODE_ENV: production
       CLIENT_DATA_FILE: /app/.runtime/clients.json
       HOME: /home/ethan
-      LEAD_FINDER_COMMAND: ${LEAD_FINDER_COMMAND:-}
+      GOOGLE_PLACES_API_KEY: ${GOOGLE_PLACES_API_KEY:-}
+      GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
     volumes:
       - ./.runtime:/app/.runtime
       - ./generated_sites:/app/generated_sites
@@ -27,7 +28,8 @@ services:
     command: ["python3", "-m", "py_compile", "backend/app/services/site_generator.py", "backend/app/services/scaffold_writer.py"]
     environment:
       HOME: /home/ethan
-      LEAD_FINDER_COMMAND: ${LEAD_FINDER_COMMAND:-}
+      GOOGLE_PLACES_API_KEY: ${GOOGLE_PLACES_API_KEY:-}
+      GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
     volumes:
       - ./.runtime:/app/.runtime
       - ./generated_sites:/app/generated_sites
