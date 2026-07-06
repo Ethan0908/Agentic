@@ -48,42 +48,78 @@ def build_codex_prompt(target: Path, business: Mapping[str, Any], creative: Mapp
     industry = creative.get("industry", "custom")
     radius = creative.get("radius", "8px")
     card_radius = creative.get("cardRadius", "8px")
+    layout = creative.get("layout", "custom")
+    density = creative.get("density", "balanced")
     hero = creative.get("images", {}).get("hero", "")
     secondary = creative.get("images", {}).get("secondary", "")
     return f"""You are inside an empty generated website folder: {target}.
 
-Build a custom one-page Next.js App Router website from scratch for this company.
-Read and use these data files:
+You are not refining a template. Build a custom one-page Next.js App Router website from scratch for this exact company.
+
+Read and use these files before writing code:
 - data/business.json
 - data/site-plan.json
 - data/creative-brief.json
 
 Company: {business.get('name')}
 Industry: {industry}
+Layout direction: {layout}
+Density: {density}
 Service area: {business.get('serviceArea')}
 Business type: {business.get('businessType')}
 Main CTA: {business.get('primaryCta')}
 
-Hard requirements:
-- Create package.json, next.config.mjs, tsconfig.json, app/layout.tsx, app/page.tsx, app/globals.css.
+Required files to create:
+- package.json
+- next.config.mjs
+- tsconfig.json
+- app/layout.tsx
+- app/page.tsx
+- app/globals.css
+
+Core rules:
 - One page only.
-- Do not use or copy any shared site-template folder.
-- Do not make it look like a generic template.
-- Make it appropriate for the industry.
-- For plumbing/electrical/trade sites: use squared industrial geometry, dense practical service blocks, strong contrast, and minimal roundness.
-- For clinics: use calmer spacing and softer geometry.
-- For boutique/luxury: use image-led layout and more whitespace.
-- For professional services: use serious editorial hierarchy.
-- Use supplied photos or the creative brief image URLs.
+- Do not use or copy site-template, variants, existing generated pages, or generic landing-page skeletons.
+- Do not create a theme-switching system. Make one finished website for this company.
+- Do not make a soft SaaS/bento/luxury template unless the industry brief actually calls for it.
+- Use the creative brief as constraints, not as a layout template.
+- The first screen must immediately show: service type, service area, value proposition, photo/media, and primary CTA.
+- Use real image URLs from the brief or profile. Do not leave blank gray boxes.
 - Hero image: {hero}
 - Secondary image: {secondary}
-- Border radius guidance: page radius {radius}, card radius {card_radius}.
-- Do not invent awards, licenses, review counts, years in business, official certifications, guarantees, or availability.
-- Avoid filler phrases like top-notch, best-in-class, world-class, trusted partner, and industry-leading.
-- The first screen must show service, location, value, photo/media, and CTA.
 - Build must pass with npm run build.
 
-After creating the files, run npm run build if dependencies are installed. Fix any build errors you caused.
+Industry execution rules:
+- Plumbing/electrical/HVAC/trades: industrial, practical, squared, utility-first. Use tight spacing, straight edges, service tables/lists, job-intake panel, dark utility band, strong CTA. Avoid pill buttons except tiny labels. Avoid bubbly cards, luxury serif styling, soft gradients, and excessive roundness.
+- Clinics/medical/wellness: calm, bright, accessible, reassuring, moderate softness, appointment-focused hierarchy.
+- Law/finance/accounting/consulting: serious editorial layout, restrained color, strong typographic hierarchy, clear decision path.
+- Spa/salon/interior/hospitality/boutique: visual-led, image-forward, generous whitespace, elegant but not fake luxury.
+- Software/agency/AI: productized sections, proof of process, compact bento only when appropriate.
+
+Geometry constraints:
+- Page radius guidance: {radius}
+- Card radius guidance: {card_radius}
+- For trade industries, most cards should be 0-8px radius. No giant 24px/32px cards. No rounded-full buttons except small tags if useful.
+
+Copy rules:
+- Use specific services, location, and process from business.json.
+- Do not invent awards, licenses, insurance, review counts, years in business, official certifications, guarantees, emergency availability, or same-day service.
+- Avoid filler: top-notch, best-in-class, world-class, trusted partner, unparalleled, industry-leading, exceed expectations.
+- Keep copy scannable. Avoid long paragraphs.
+- Make CTAs practical: call, request service, send details, schedule, get quote path.
+
+Visual quality bar:
+- It should look like a paid local-agency one-page build, not an AI default landing page.
+- Use strong composition: asymmetry, image crop, content hierarchy, responsive layout, and purposeful whitespace.
+- Add visual specificity for the sector: plumbing can include pipe/worksite imagery, job-intake block, service checklist, urgency strip, and rougher industrial rhythm.
+- Mobile must be clean and conversion-focused.
+
+Implementation rules:
+- Use plain React/Next and CSS. No Tailwind unless you fully configure it.
+- Do not depend on external UI libraries.
+- Use ordinary img tags for remote images unless you configure Next images correctly.
+- Keep TypeScript valid.
+- After writing files, run npm run build if dependencies are installed and fix any errors you caused.
 """
 
 
