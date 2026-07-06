@@ -245,7 +245,7 @@ def generate_site(
 
     from .codex_scratch_generator import generate_site as generate_codex_site
 
-    codex_command = os.environ.get("CODEX_COMMAND", "/usr/bin/codex")
+    codex_command = os.environ.get("CODEX_COMMAND", "codex")
     return generate_codex_site(raw_business, output_dir=output_dir, codex_command=codex_command)
 
 
