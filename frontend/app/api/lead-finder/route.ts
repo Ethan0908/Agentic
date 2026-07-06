@@ -1,27 +1,21 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '../../../lib/client-store';
 
-type PlaceSearchResult = {
-  place_id?: string;
+type NewPlace = {
+  id?: string;
   name?: string;
-  formatted_address?: string;
+  displayName?: { text?: string; languageCode?: string };
+  formattedAddress?: string;
+  nationalPhoneNumber?: string;
+  internationalPhoneNumber?: string;
+  websiteUri?: string;
+  googleMapsUri?: string;
   types?: string[];
+  primaryType?: string;
+  primaryTypeDisplayName?: { text?: string; languageCode?: string };
   rating?: number;
-  user_ratings_total?: number;
-  photos?: { photo_reference?: string }[];
-};
-
-type PlaceDetailsResult = {
-  name?: string;
-  formatted_address?: string;
-  formatted_phone_number?: string;
-  international_phone_number?: string;
-  website?: string;
-  url?: string;
-  types?: string[];
-  rating?: number;
-  user_ratings_total?: number;
-  photos?: { photo_reference?: string }[];
+  userRatingCount?: number;
+  photos?: { name?: string }[];
 };
 
 function apiKey() {
@@ -32,67 +26,78 @@ function text(value: unknown) {
   return String(value || '').trim();
 }
 
-function leadType(place: PlaceSearchResult | PlaceDetailsResult, fallback: string) {
-  const types = Array.isArray(place.types) ? place.types : [];
-  const cleaned = types
-    .filter((item) => !['point_of_interest', 'establishment'].includes(item))
-    .map((item) => item.replace(/_/g, ' '));
-  return cleaned[0] || fallback;
+function cleanType(value: string) {
+  return value.replace(/_/g, ' ').trim();
 }
 
-function photoUrls(place: PlaceSearchResult | PlaceDetailsResult, key: string) {
-  const photos = Array.isArray(place.photos) ? place.photos : [];
-  return photos
-    .map((photo) => photo.photo_reference)
+function leadType(place: NewPlace, fallback: string) {
+  return text(place.primaryTypeDisplayName?.text)
+    || cleanType(text(place.primaryType))
+    || cleanType((place.types || []).find((item) => !['point_of_interest', 'establishment'].includes(item)) || '')
+    || fallback;
+}
+
+function photoUrls(place: NewPlace, key: string) {
+  return (place.photos || [])
+    .map((photo) => photo.name)
     .filter(Boolean)
     .slice(0, 4)
-    .map((reference) => `https://maps.googleapis.com/maps/api/place/photo?maxwidth=1400&photoreference=${encodeURIComponent(String(reference))}&key=${encodeURIComponent(key)}`);
+    .map((name) => `https://places.googleapis.com/v1/${String(name)}/media?maxWidthPx=1400&key=${encodeURIComponent(key)}`);
 }
 
-async function googleJson(url: URL) {
-  const response = await fetch(url, { cache: 'no-store' });
+async function searchPlacesNew(query: string, location: string, limit: number, key: string): Promise<NewPlace[]> {
+  const response = await fetch('https://places.googleapis.com/v1/places:searchText', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Goog-Api-Key': key,
+      'X-Goog-FieldMask': [
+        'places.id',
+        'places.name',
+        'places.displayName',
+        'places.formattedAddress',
+        'places.nationalPhoneNumber',
+        'places.internationalPhoneNumber',
+        'places.websiteUri',
+        'places.googleMapsUri',
+        'places.types',
+        'places.primaryType',
+        'places.primaryTypeDisplayName',
+        'places.rating',
+        'places.userRatingCount',
+        'places.photos',
+      ].join(','),
+    },
+    body: JSON.stringify({
+      textQuery: [query, location].filter(Boolean).join(' in '),
+      maxResultCount: Math.max(1, Math.min(limit, 20)),
+    }),
+    cache: 'no-store',
+  });
+
   const payload = await response.json();
-  if (!response.ok || (payload.status && !['OK', 'ZERO_RESULTS'].includes(payload.status))) {
-    throw new Error(payload.error_message || payload.status || 'Google Places request failed.');
+  if (!response.ok) {
+    throw new Error(payload.error?.message || payload.error_message || 'Places API New request failed.');
   }
-  return payload;
+  return Array.isArray(payload.places) ? payload.places : [];
 }
 
-async function searchPlaces(query: string, location: string, limit: number, key: string): Promise<PlaceSearchResult[]> {
-  const url = new URL('https://maps.googleapis.com/maps/api/place/textsearch/json');
-  url.searchParams.set('query', [query, location].filter(Boolean).join(' in '));
-  url.searchParams.set('key', key);
-  const payload = await googleJson(url);
-  const results = Array.isArray(payload.results) ? payload.results : [];
-  return results.slice(0, limit);
-}
-
-async function placeDetails(placeId: string, key: string): Promise<PlaceDetailsResult> {
-  const url = new URL('https://maps.googleapis.com/maps/api/place/details/json');
-  url.searchParams.set('place_id', placeId);
-  url.searchParams.set('fields', 'name,formatted_address,formatted_phone_number,international_phone_number,website,url,types,rating,user_ratings_total,photos');
-  url.searchParams.set('key', key);
-  const payload = await googleJson(url);
-  return payload.result || {};
-}
-
-function toLead(place: PlaceSearchResult, details: PlaceDetailsResult, query: string, location: string, key: string) {
-  const merged = { ...place, ...details };
-  const rating = merged.rating ? `${merged.rating} rating` : '';
-  const reviews = merged.user_ratings_total ? `${merged.user_ratings_total} Google reviews` : '';
-  const address = text(merged.formatted_address);
+function toLead(place: NewPlace, query: string, location: string, key: string) {
+  const rating = place.rating ? `${place.rating} rating` : '';
+  const reviews = place.userRatingCount ? `${place.userRatingCount} Google reviews` : '';
+  const address = text(place.formattedAddress);
   const notes = [query, location, rating, reviews, address].filter(Boolean).join(' • ');
 
   return {
-    name: text(merged.name),
-    businessType: leadType(merged, query),
+    name: text(place.displayName?.text),
+    businessType: leadType(place, query),
     city: location,
     serviceArea: location,
-    website: text(merged.website || merged.url),
+    website: text(place.websiteUri || place.googleMapsUri),
     email: '',
-    phone: text(merged.formatted_phone_number || merged.international_phone_number),
+    phone: text(place.nationalPhoneNumber || place.internationalPhoneNumber),
     notes,
-    photos: photoUrls(merged, key),
+    photos: photoUrls(place, key),
     status: 'lead' as const,
   };
 }
@@ -112,13 +117,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Enter a business type or niche to search.' }, { status: 400 });
   }
 
-  const places = await searchPlaces(query, location, limit, key);
+  const places = await searchPlacesNew(query, location, limit, key);
   const created = [];
 
   for (const place of places) {
-    if (!place.place_id) continue;
-    const details = await placeDetails(place.place_id, key);
-    const lead = toLead(place, details, query, location, key);
+    const lead = toLead(place, query, location, key);
     if (!lead.name) continue;
     created.push(await createClient(lead));
   }
