@@ -44,30 +44,38 @@ The common failure looks like this:
 Codex auth not found at /root/.codex/auth.json. Mount the Pi user's ~/.codex into the backend container.
 ```
 
-That means Codex is authenticated for the host user, usually:
-
-```text
-/home/ethan/.codex/auth.json
-```
-
-but the backend process is running inside a container as `root`, so it looks for:
+That means the running backend is checking for an old expected auth file path inside the container:
 
 ```text
 /root/.codex/auth.json
 ```
 
-### Check that the Pi user is logged in to Codex
+The current repo-side generator does not check for that filename directly; it runs `codex exec` and lets the Codex CLI use its own local state.
+
+### Check that the Pi user can run Codex
 
 Run this on the Pi host, not inside the container:
 
 ```bash
-ls -la /home/ethan/.codex
+cd /home/ethan/Agentic
+whoami
 codex --version
+codex --help | sed -n '1,120p'
 ```
 
-If there is no `/home/ethan/.codex/auth.json`, log in to Codex from the Pi user account first.
+If the help output shows a login command, run it as the `ethan` user, not with `sudo`. For example:
 
-Do not copy `auth.json` into GitHub, do not paste it into ChatGPT, and do not bake it into a Docker image.
+```bash
+codex login
+```
+
+Then test a tiny non-project command from the Pi host:
+
+```bash
+codex exec "Return only the word OK."
+```
+
+Do not copy Codex state files into GitHub, do not paste them into ChatGPT, and do not bake them into a Docker image.
 
 ### Repair Codex folder ownership if needed
 
@@ -76,16 +84,17 @@ If the Pi says `Permission denied` when the `ethan` user checks `/home/ethan/.co
 Run this on the Pi host:
 
 ```bash
-sudo ls -ld /home/ethan/.codex /home/ethan/.codex/auth.json
+sudo ls -ld /home/ethan/.codex
 sudo chown -R ethan:ethan /home/ethan/.codex
 chmod 700 /home/ethan/.codex
-chmod 600 /home/ethan/.codex/auth.json
+find /home/ethan/.codex -type d -exec chmod 700 {} +
+find /home/ethan/.codex -type f -exec chmod 600 {} +
 ls -la /home/ethan/.codex
 ```
 
 After this, run Codex as `ethan`, not with `sudo`.
 
-### Mount Codex auth into a backend container
+### Mount Codex state into a backend container
 
 `-v /home/ethan/.codex:/root/.codex` is not a standalone shell command. It is an argument to `docker run`.
 
