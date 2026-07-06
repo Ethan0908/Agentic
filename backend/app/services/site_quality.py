@@ -7,8 +7,10 @@ as if they are production-ready.
 
 from __future__ import annotations
 
+import argparse
 import json
 import re
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal, Mapping
@@ -224,3 +226,20 @@ def assert_quality_gate(site_path: Path | str, minimum_score: int = 75) -> Quali
         summary = "; ".join(f"{issue.severity}:{issue.code}" for issue in report.issues[:6])
         raise ValueError(f"Generated site failed quality gate with score {report.score}: {summary}")
     return report
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Validate a generated site folder and write data/quality-report.json.")
+    parser.add_argument("site_path", help="Path to a generated site folder.")
+    parser.add_argument("--min-score", type=int, default=75, help="Minimum score required for success.")
+    args = parser.parse_args()
+
+    report = validate_generated_site(args.site_path, minimum_score=args.min_score)
+    write_quality_report(args.site_path, report)
+    print(json.dumps(report.as_dict(), ensure_ascii=False, indent=2))
+    if not report.passed:
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
