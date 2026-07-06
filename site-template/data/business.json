@@ -1,6 +1,7 @@
 {
   "name": "Northline Home Services",
   "slug": "northline-home-services",
+  "vertical": "home-service",
   "businessType": "home service",
   "city": "New York",
   "serviceArea": "Manhattan and nearby neighbourhoods",
@@ -16,6 +17,35 @@
   },
   "heroImage": null,
   "photos": [],
+  "pageCopy": {
+    "panelLabel": "Service flow",
+    "panelHeading": "Clear scope, practical next steps, and careful follow-through.",
+    "servicesEyebrow": "Services",
+    "servicesHeading": "Practical home service support for Manhattan and nearby neighbourhoods.",
+    "servicesIntro": "Tell the team what is happening, where the work is needed, and the timing. The response can start with the right context instead of a long back-and-forth.",
+    "standardEyebrow": "Service standard",
+    "standardHeading": "Clear communication before the work starts.",
+    "standardBody": "Good service is not only the final result. It is also how the request is handled, scoped, explained, and followed through.",
+    "standardLink": "Start with a clear request →",
+    "standardCards": [
+      {
+        "title": "Clear next step",
+        "description": "Visitors know exactly what to send, ask, or book after reading the page."
+      },
+      {
+        "title": "Specific details",
+        "description": "The page answers practical questions instead of relying on vague marketing language."
+      },
+      {
+        "title": "Easy contact",
+        "description": "The primary CTA stays visible and connected to the available contact method."
+      }
+    ],
+    "processHeading": "From first request to a defined next step.",
+    "processIntro": "A simple process helps visitors act without guessing what information to send or what happens after contact.",
+    "confidenceHeading": "What customers can expect.",
+    "confidenceIntro": "Visitors get the information they need before choosing the next step."
+  },
   "proofPoints": [
     "Clear scope before work starts",
     "Practical scheduling and communication",
@@ -27,12 +57,12 @@
       "description": "Share the issue and get a clear path for the next step."
     },
     {
-      "title": "Repair and service",
+      "title": "Service work",
       "description": "Focused work with communication before and after the visit."
     },
     {
-      "title": "Installation",
-      "description": "Planned installation with attention to fit, finish, and reliability."
+      "title": "Installation or setup",
+      "description": "Planned work with attention to fit, finish, and reliability."
     },
     {
       "title": "Maintenance",
