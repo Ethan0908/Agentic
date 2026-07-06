@@ -69,19 +69,9 @@ def _public_image_url(value: Any) -> str:
 def _photo_list(raw: Mapping[str, Any], business_name: str) -> list[dict[str, str]]:
     sources: list[Any] = []
     for key in (
-        "photos",
-        "images",
-        "photo_urls",
-        "photoUrls",
-        "image_urls",
-        "imageUrls",
-        "gallery",
-        "business_photos",
-        "businessPhotos",
-        "website_images",
-        "websiteImages",
-        "scraped_images",
-        "scrapedImages",
+        "photos", "images", "photo_urls", "photoUrls", "image_urls", "imageUrls",
+        "gallery", "business_photos", "businessPhotos", "website_images", "websiteImages",
+        "scraped_images", "scrapedImages",
     ):
         sources.extend(_list(raw.get(key)))
     sources = _list(raw.get("hero_image") or raw.get("heroImage") or raw.get("cover_image") or raw.get("coverImage")) + sources
@@ -182,25 +172,25 @@ def _codex_command(default_command: str = "codex") -> list[str]:
     env_command = os.environ.get("CODEX_COMMAND", "").strip()
     if env_command:
         return env_command.split()
-
     codex_path = shutil.which(default_command)
     if codex_path:
         return [codex_path]
-
     npx_path = shutil.which("npx")
     if npx_path:
         return [npx_path, "-y", "@openai/codex"]
+    raise SiteGenerationError("Codex CLI was not found. Rebuild the frontend container or set CODEX_COMMAND.")
 
-    raise SiteGenerationError(
-        "Codex CLI was not found in this runtime. Rebuild the container with frontend/Dockerfile or set CODEX_COMMAND. "
-        "Expected either `codex` on PATH or `npx` available for `npx -y @openai/codex`."
-    )
+
+def _codex_exec_args() -> list[str]:
+    sandbox = os.environ.get("CODEX_SANDBOX", "danger-full-access").strip()
+    # Docker already isolates this process. danger-full-access avoids bubblewrap/user-namespace failures inside Raspberry Pi containers.
+    return ["exec", "--sandbox", sandbox]
 
 
 def run_codex_refinement(site_path: Path, instruction: str, codex_command: str = "codex", timeout_seconds: int = 1800) -> None:
     if not site_path.exists():
         raise SiteGenerationError(f"Cannot run in missing site path: {site_path}")
-    command = [*_codex_command(codex_command), "exec", instruction]
+    command = [*_codex_command(codex_command), *_codex_exec_args(), instruction]
     subprocess.run(command, cwd=site_path, check=True, text=True, env=load_local_env(), timeout=timeout_seconds)
 
 
