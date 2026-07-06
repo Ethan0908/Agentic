@@ -4,7 +4,7 @@ You are refining a generated premium local-business landing page. The project al
 
 ## Goal
 
-Improve the generated website so it feels like a polished agency-built site: visually refined, fast, responsive, credible, specific, and built to convert visitors into phone calls, quote requests, bookings, or form submissions.
+Improve the generated website so it feels like a polished agency-built site: visually refined, fast, responsive, credible, specific, and built to convert visitors into phone calls, quote requests, bookings, reservation inquiries, consultation requests, or form submissions.
 
 ## Architecture rules
 
@@ -14,6 +14,7 @@ Improve the generated website so it feels like a polished agency-built site: vis
 4. Do not add dependencies unless the quality gain is obvious and build-safe.
 5. Prefer small high-leverage changes over large speculative rewrites.
 6. Keep business data in JSON and presentation in React/CSS. Do not hardcode one company's copy into reusable template code.
+7. Preserve `data/business.json`, `data/design.json`, `data/sections.json`, and `data/site-plan.json` unless you are correcting a real generated-site problem.
 
 ## Non-negotiable standards
 
@@ -21,12 +22,20 @@ Improve the generated website so it feels like a polished agency-built site: vis
 2. **Keep text concise.** Web users scan. Use short paragraphs, meaningful headings, strong bullets, and one idea per section.
 3. **Start with the outcome.** The hero must immediately answer: what service this is, where it operates, why the visitor should trust it, and what action to take.
 4. **Conversion first.** Every major section should support the primary CTA. Do not add decorative sections that do not increase trust, clarity, urgency, or intent.
-5. **Use proof responsibly.** Do not invent licences, awards, years in business, review counts, brand partnerships, emergency availability, or guarantees unless provided in the input.
-6. **Use industry-specific details.** Infer realistic service details from the business type, but do not make unverifiable claims.
+5. **Use proof responsibly.** Do not invent licences, awards, years in business, review counts, brand partnerships, emergency availability, menu items, pricing, client outcomes, or guarantees unless provided in the input.
+6. **Use vertical-specific details.** Infer realistic service/dining/booking/intake details from the business type, but do not make unverifiable claims.
 7. **Make it feel expensive.** Use intentional spacing, editorial layout, layered cards, restrained motion, confident typography, strong contrast, and real business imagery when supplied.
 8. **Mobile must be excellent.** The mobile page should have a visible sticky CTA, readable type, strong spacing, and no horizontal overflow.
 9. **Performance matters.** Keep generated pages lean. Avoid unnecessary dependencies, heavy animation, large remote images, and layout shift.
 10. **Accessibility matters.** Use semantic HTML, readable contrast, keyboard-focusable CTAs, descriptive labels, and logical heading order.
+
+## Vertical-specific rules
+
+- Omakase, sushi, restaurant, dining, bar, cafe, and catering sites must sound like hospitality/reservation pages, not home-service pages.
+- Clinics, spas, salons, and wellness sites must sound calm and appointment-led, not repair-led.
+- Law, accounting, finance, consulting, and advisory sites must sound restrained and consultation-led, not emergency-service pages.
+- Emergency trade pages should be phone-first and direct, but still cannot invent response times, licences, or availability.
+- Never replace vertical-specific `pageCopy` with generic copy.
 
 ## Image and uniqueness rules
 
@@ -50,7 +59,7 @@ When Claude Code project agents are available, use them this way:
 ## Copywriting rules
 
 - Headlines should be specific, useful, and local when possible.
-- CTA labels must be action-oriented: "Request a quote", "Call now", "Book an assessment", "Schedule service".
+- CTA labels must be action-oriented: "Request a quote", "Call now", "Request a reservation", "Request an appointment", "Request a consultation".
 - Replace vague benefits with concrete ones:
   - weak: "High quality service"
   - strong: "Clear diagnosis before work starts"
@@ -81,7 +90,9 @@ Before finishing, verify:
 - Hero communicates service, location, value, and CTA within 5 seconds.
 - Page does not rely on fake awards, fake reviews, or exaggerated claims.
 - Copy is concise, scannable, and objective.
+- Vertical is correct; for example, an omakase page must not mention repair, installation, maintenance, or quote paths unless those words are truly in the input.
 - Mobile CTA is obvious.
 - Supplied business photos are used correctly, with useful alt text and no broken layout.
-- Sections flow from problem → trust → service → process → proof → CTA.
+- Sections flow from problem → trust → service/experience → process → proof → CTA.
+- `python3 -m backend.app.services.site_quality <site>` is not required, but the generated-site quality report should pass when the repo-side generator runs.
 - `npm run build` should pass.
