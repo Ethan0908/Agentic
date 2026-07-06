@@ -69,7 +69,18 @@ def compact_json(value: Mapping[str, Any], max_chars: int = 5000) -> str:
 
 def _search_blob(business: Mapping[str, Any]) -> str:
     parts: list[str] = []
-    for key in ("name", "businessType", "business_type", "category", "headline", "subheadline", "serviceArea", "service_area", "city"):
+    for key in (
+        "name",
+        "vertical",
+        "businessType",
+        "business_type",
+        "category",
+        "headline",
+        "subheadline",
+        "serviceArea",
+        "service_area",
+        "city",
+    ):
         value = business.get(key)
         if value:
             parts.append(str(value))
@@ -91,6 +102,21 @@ def select_design_system(business: Mapping[str, Any]) -> dict[str, Any]:
 
     systems = load_json(DESIGN_SYSTEMS_FILE)
     blob = _search_blob(business)
+    vertical = str(business.get("vertical", ""))
+
+    vertical_overrides = {
+        "restaurant-hospitality": "boutique-luxury",
+        "beauty-wellness": "boutique-luxury",
+        "clinical-wellness": "clinical-trust",
+        "professional-advisory": "professional-advisory",
+        "emergency-service": "emergency-response",
+        "modern-growth": "modern-growth",
+        "home-service": "premium-local-service",
+    }
+    if vertical in vertical_overrides:
+        chosen = dict(systems[vertical_overrides[vertical]])
+        chosen["id"] = vertical_overrides[vertical]
+        return chosen
 
     best_id = "premium-local-service"
     best_score = -1
@@ -107,19 +133,23 @@ def select_design_system(business: Mapping[str, Any]) -> dict[str, Any]:
 
 def detect_intent(business: Mapping[str, Any]) -> dict[str, bool]:
     blob = _search_blob(business)
+    vertical = str(business.get("vertical", ""))
     emergency_terms = ("emergency", "urgent", "24/7", "same day", "sewer", "leak", "water damage", "locksmith", "towing")
-    appointment_terms = ("clinic", "dental", "medical", "appointment", "therapy", "consultation", "spa", "salon")
+    appointment_terms = ("clinic", "dental", "medical", "appointment", "therapy", "consultation", "spa", "salon", "reservation", "omakase")
     professional_terms = ("law", "legal", "finance", "accounting", "insurance", "mortgage", "advisory", "consulting")
-    image_led_terms = ("restaurant", "catering", "salon", "spa", "wedding", "photography", "interior", "design", "hotel", "fitness")
+    image_led_terms = ("restaurant", "omakase", "sushi", "catering", "salon", "spa", "wedding", "photography", "interior", "design", "hotel", "fitness")
     photos = business.get("photos") or []
     return {
-        "emergency": any(term in blob for term in emergency_terms),
-        "appointment": any(term in blob for term in appointment_terms),
-        "professional": any(term in blob for term in professional_terms),
-        "imageLed": bool(photos) or any(term in blob for term in image_led_terms),
+        "emergency": vertical == "emergency-service" or any(term in blob for term in emergency_terms),
+        "appointment": vertical in {"restaurant-hospitality", "clinical-wellness", "beauty-wellness"} or any(term in blob for term in appointment_terms),
+        "professional": vertical == "professional-advisory" or any(term in blob for term in professional_terms),
+        "restaurant": vertical == "restaurant-hospitality",
+        "imageLed": bool(photos) or vertical in {"restaurant-hospitality", "beauty-wellness"} or any(term in blob for term in image_led_terms),
         "hasPhotos": bool(photos),
         "hasReviews": bool(business.get("reviews")),
         "hasPhone": bool(business.get("phone")),
+        "hasEmail": bool(business.get("email")),
+        "hasWebsite": bool(business.get("website")),
     }
 
 
@@ -145,7 +175,7 @@ def build_image_strategy(business: Mapping[str, Any], design: Mapping[str, Any],
             ],
         }
 
-    fallback_mode = "graphic-editorial" if design.get("layoutPattern") != "gallery-bento" else "photo-requested"
+    fallback_mode = "photo-requested" if intent.get("imageLed") else "graphic-editorial"
     return {
         "mode": fallback_mode,
         "heroPhoto": None,
@@ -169,6 +199,11 @@ def build_section_plan(business: Mapping[str, Any], design: Mapping[str, Any]) -
         final_cta = "call" if intent["hasPhone"] else "quote"
         proof = "phone-proof"
         services = "checklist"
+    elif intent["restaurant"]:
+        process = "consultative"
+        final_cta = "booking"
+        proof = "bento-proof"
+        services = "cards"
     elif intent["professional"]:
         process = "consultative"
         final_cta = "consultation"
@@ -210,11 +245,12 @@ def build_agent_brief(business: Mapping[str, Any], design: Mapping[str, Any], se
     budget = token_budget["default"]
     image_strategy = sections.get("imageStrategy", {})
     return {
-        "briefVersion": 2,
+        "briefVersion": 3,
         "goal": "Create a premium, high-converting local business website without fake claims or generic AI copy.",
         "businessSummary": compact_text(
             {
                 "name": business.get("name"),
+                "vertical": business.get("vertical"),
                 "type": business.get("businessType"),
                 "area": business.get("serviceArea"),
                 "cta": business.get("primaryCta"),
@@ -234,7 +270,8 @@ def build_agent_brief(business: Mapping[str, Any], design: Mapping[str, Any], se
         ),
         "sectionSummary": compact_text(sections, budget["copyPlanMaxChars"]),
         "hardRules": [
-            "Do not invent awards, licences, review counts, guarantees, years in business, or emergency availability.",
+            "Do not invent awards, licences, review counts, guarantees, years in business, emergency availability, menu items, prices, or results.",
+            "Preserve the vertical-specific copy direction; never flatten a restaurant, clinic, or advisory page back into generic local-service copy.",
             "Use supplied business photos when present; do not use unrelated stock images.",
             "Prefer short specific copy over vague promotional copy.",
             "Preserve buildability and Vercel deployment assumptions.",
@@ -265,7 +302,27 @@ def build_claude_agent_prompt(site_plan: SitePlan, target_path: Path) -> str:
 
     budget = load_json(TOKEN_BUDGET_FILE)["default"]
     plan_json = compact_json(site_plan.as_dict(), max_chars=budget["agentPromptMaxChars"])
-    return f"""Improve this generated website using the project Claude agents.\n\nTarget folder: {target_path}\nCompact site plan JSON: {plan_json}\n\nWorkflow:\n1. Use @business-profiler to verify the brief, vertical, image availability, and safe claims.\n2. Use @conversion-strategist to check the section order, CTA hierarchy, and objection handling.\n3. Use @brand-director to refine the visual direction only if the selected design system is weak.\n4. Use @copy-polisher to remove generic copy and improve CTA clarity.\n5. Use @frontend-refiner to improve React/CSS only where it materially improves quality.\n6. Use @visual-qa to review mobile/desktop quality and list fixes.\n\nConstraints:\n- Keep changes minimal and high leverage.\n- Use supplied business photos when present; do not add unrelated stock photos.\n- Do not paste whole files into agent prompts unless necessary.\n- Do not invent claims.\n- Run the build if dependencies are installed.\n"""
+    return f"""Improve this generated website using the project Claude agents.
+
+Target folder: {target_path}
+Compact site plan JSON: {plan_json}
+
+Workflow:
+1. Use @business-profiler to verify the brief, vertical, image availability, and safe claims.
+2. Use @conversion-strategist to check the section order, CTA hierarchy, and objection handling.
+3. Use @brand-director to refine the visual direction only if the selected design system is weak.
+4. Use @copy-polisher to remove generic copy and improve CTA clarity.
+5. Use @frontend-refiner to improve React/CSS only where it materially improves quality.
+6. Use @visual-qa to review mobile/desktop quality and list fixes.
+
+Constraints:
+- Keep changes minimal and high leverage.
+- Preserve vertical-specific intent. A restaurant/omakase site must not sound like plumbing, repair, or generic local service.
+- Use supplied business photos when present; do not add unrelated stock photos.
+- Do not paste whole files into agent prompts unless necessary.
+- Do not invent claims.
+- Run the build if dependencies are installed.
+"""
 
 
 def run_claude_refinement(site_plan: SitePlan, target_path: Path, claude_command: str = "claude") -> None:
