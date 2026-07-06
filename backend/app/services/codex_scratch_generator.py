@@ -129,6 +129,7 @@ def codex_candidates(command: str) -> list[str]:
     candidates = [
         shutil.which(command),
         str(Path.home() / ".npm-global" / "bin" / command),
+        "/usr/local/bin/codex" if command == "codex" else None,
         "/usr/bin/codex" if command == "codex" else None,
         "/bin/codex" if command == "codex" else None,
         str(Path.home() / ".local" / "bin" / command),
@@ -180,12 +181,12 @@ def resolve_executable(command: str) -> str:
 def run_command(command: list[str], cwd: Path) -> None:
     if command[0] not in {sys.executable, "npm", "node"}:
         command[0] = resolve_executable(command[0])
-    print(f"\n▶ {' '.join(command[:2])} ...\n  cwd: {cwd}")
+    print(f"\n▶ {' '.join(command[:3])} ...\n  cwd: {cwd}")
     subprocess.run(command, cwd=cwd, check=True, text=True, env=load_local_env())
 
 
 def run_codex(target: Path, prompt: str, codex_command: str = "codex") -> None:
-    run_command([codex_command, "exec", prompt], cwd=target)
+    run_command([codex_command, "exec", "--skip-git-repo-check", prompt], cwd=target)
 
 
 def verify_files(target: Path) -> None:
