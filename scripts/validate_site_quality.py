@@ -1,140 +1,36 @@
-"""Lightweight quality gate for generated sites.
-
-This is not a replacement for visual QA, but it catches common failures before a
-site is deployed: missing plan files, generic AI copy, fake proof claims, weak
-CTA data, and oversized text blocks.
+#!/usr/bin/env python3
+"""Validate a generated site folder.
 
 Usage:
-    python scripts/validate_site_quality.py generated_sites/example-site
+    python3 scripts/validate_site_quality.py generated_sites/<business-slug>
 """
 
 from __future__ import annotations
 
+import argparse
 import json
-import re
 import sys
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from backend.app.services.site_quality import validate_generated_site, write_quality_report  # noqa: E402
 
 
-BANNED_GENERIC = (
-    "top-notch",
-    "best in class",
-    "your trusted partner",
-    "exceed expectations",
-    "unparalleled",
-    "world-class",
-    "cutting-edge solutions",
-)
+def main() -> None:
+    parser = argparse.ArgumentParser(description="Validate a generated site folder and write data/quality-report.json.")
+    parser.add_argument("site_path", help="Path to generated site folder.")
+    parser.add_argument("--min-score", type=int, default=75, help="Minimum score required for success.")
+    args = parser.parse_args()
 
-UNVERIFIED_CLAIMS = (
-    "award-winning",
-    "licensed",
-    "insured",
-    "certified",
-    "#1",
-    "number one",
-    "five-star",
-    "5-star",
-    "trusted by thousands",
-    "guaranteed",
-    "24/7",
-    "same-day",
-)
-
-
-@dataclass
-class Finding:
-    severity: str
-    message: str
-
-
-def load(path: Path) -> dict[str, Any]:
-    return json.loads(path.read_text(encoding="utf-8"))
-
-
-def flatten_strings(value: Any) -> list[str]:
-    if isinstance(value, str):
-        return [value]
-    if isinstance(value, list):
-        out: list[str] = []
-        for item in value:
-            out.extend(flatten_strings(item))
-        return out
-    if isinstance(value, dict):
-        out = []
-        for item in value.values():
-            out.extend(flatten_strings(item))
-        return out
-    return []
-
-
-def validate(site_path: Path) -> list[Finding]:
-    findings: list[Finding] = []
-    data_dir = site_path / "data"
-    required = ["business.json", "design.json", "sections.json", "site-plan.json"]
-
-    for filename in required:
-        if not (data_dir / filename).exists():
-            findings.append(Finding("blocker", f"Missing data/{filename}"))
-
-    if findings:
-        return findings
-
-    business = load(data_dir / "business.json")
-    design = load(data_dir / "design.json")
-    sections = load(data_dir / "sections.json")
-    all_text = "\n".join(flatten_strings(business)).lower()
-
-    if not business.get("primaryCta"):
-        findings.append(Finding("blocker", "Missing primary CTA."))
-
-    if not business.get("services") or len(business.get("services", [])) < 3:
-        findings.append(Finding("major", "Fewer than three services. The page may feel thin."))
-
-    if not design.get("id") or not design.get("tokens"):
-        findings.append(Finding("blocker", "Missing design system id or tokens."))
-
-    if not sections.get("heroVariant"):
-        findings.append(Finding("blocker", "Missing hero variant."))
-
-    for phrase in BANNED_GENERIC:
-        if phrase in all_text:
-            findings.append(Finding("major", f"Generic AI copy found: {phrase}"))
-
-    supplied_proof = " ".join(flatten_strings({
-        "proofPoints": business.get("proofPoints", []),
-        "reviews": business.get("reviews", []),
-        "guarantee": business.get("guarantee", ""),
-    })).lower()
-    for claim in UNVERIFIED_CLAIMS:
-        if claim in all_text and claim not in supplied_proof:
-            findings.append(Finding("major", f"Potential unverifiable claim: {claim}"))
-
-    long_blocks = [text for text in flatten_strings(business) if len(re.sub(r"\s+", " ", text).strip()) > 280]
-    if long_blocks:
-        findings.append(Finding("minor", f"{len(long_blocks)} copy block(s) are probably too long for a landing page."))
-
-    return findings
-
-
-def main() -> int:
-    if len(sys.argv) != 2:
-        print("Usage: python scripts/validate_site_quality.py <site-path>")
-        return 2
-
-    site_path = Path(sys.argv[1])
-    findings = validate(site_path)
-    if not findings:
-        print("PASS: generated site data passed lightweight quality checks.")
-        return 0
-
-    for finding in findings:
-        print(f"{finding.severity.upper()}: {finding.message}")
-
-    return 1 if any(f.severity in {"blocker", "major"} for f in findings) else 0
+    report = validate_generated_site(args.site_path, minimum_score=args.min_score)
+    write_quality_report(args.site_path, report)
+    print(json.dumps(report.as_dict(), ensure_ascii=False, indent=2))
+    if not report.passed:
+        sys.exit(1)
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    main()
