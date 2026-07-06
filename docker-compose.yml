@@ -1,0 +1,34 @@
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: agentic-frontend
+    working_dir: /app/frontend
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      CLIENT_DATA_FILE: /app/.runtime/clients.json
+      HOME: /home/ethan
+    volumes:
+      - ./.runtime:/app/.runtime
+      - ./generated_sites:/app/generated_sites
+      - /home/ethan/.codex:/home/ethan/.codex:ro
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: agentic-backend-runtime
+    working_dir: /app
+    command: ["python3", "-m", "py_compile", "backend/app/services/site_generator.py", "backend/app/services/scaffold_writer.py"]
+    environment:
+      HOME: /home/ethan
+    volumes:
+      - ./.runtime:/app/.runtime
+      - ./generated_sites:/app/generated_sites
+      - /home/ethan/.codex:/home/ethan/.codex:ro
+    profiles:
+      - tools
