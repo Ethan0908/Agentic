@@ -11,12 +11,14 @@ services:
       NODE_ENV: production
       CLIENT_DATA_FILE: /app/.runtime/clients.json
       HOME: /home/ethan
+      CODEX_HOME: /home/ethan/.codex
       GOOGLE_PLACES_API_KEY: ${GOOGLE_PLACES_API_KEY:-}
       GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     volumes:
       - ./.runtime:/app/.runtime
       - ./generated_sites:/app/generated_sites
-      - /home/ethan/.codex:/home/ethan/.codex:ro
+      - /home/ethan/.codex:/home/ethan/.codex
     restart: unless-stopped
 
   backend:
@@ -28,11 +30,13 @@ services:
     command: ["python3", "-m", "py_compile", "backend/app/services/site_generator.py", "backend/app/services/scaffold_writer.py"]
     environment:
       HOME: /home/ethan
+      CODEX_HOME: /home/ethan/.codex
       GOOGLE_PLACES_API_KEY: ${GOOGLE_PLACES_API_KEY:-}
       GOOGLE_MAPS_API_KEY: ${GOOGLE_MAPS_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     volumes:
       - ./.runtime:/app/.runtime
       - ./generated_sites:/app/generated_sites
-      - /home/ethan/.codex:/home/ethan/.codex:ro
+      - /home/ethan/.codex:/home/ethan/.codex
     profiles:
       - tools
