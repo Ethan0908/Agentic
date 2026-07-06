@@ -1,0 +1,12 @@
+services:
+  frontend:
+    env_file:
+      - .env
+    environment:
+      CODEX_SANDBOX: ${CODEX_SANDBOX:-danger-full-access}
+
+  backend:
+    env_file:
+      - .env
+    environment:
+      CODEX_SANDBOX: ${CODEX_SANDBOX:-danger-full-access}
