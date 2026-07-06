@@ -1,0 +1,17 @@
+{
+  "heroVariant": "split-panel",
+  "proofVariant": "trust-strip",
+  "servicesVariant": "cards",
+  "processVariant": "three-step",
+  "proofOrExpectation": "expectations",
+  "finalCtaVariant": "quote",
+  "sectionOrder": ["hero", "proof", "services", "decision", "process", "proofOrExpectation", "faq", "finalCta"],
+  "intent": {
+    "emergency": false,
+    "appointment": false,
+    "professional": false,
+    "hasReviews": false,
+    "hasPhone": false
+  },
+  "registryNotes": {}
+}

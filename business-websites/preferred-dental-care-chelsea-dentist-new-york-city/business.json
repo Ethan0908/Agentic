@@ -1,0 +1,51 @@
+{
+  "name": "Preferred Dental Care - Chelsea Dentist",
+  "category": "Dentist",
+  "city": "New York City",
+  "address": "135 W 27th St, New York, NY 10001, USA",
+  "phone": "+1 212-594-7171",
+  "email": null,
+  "originalWebsite": "https://www.preferreddentalcare.com/locations/chelsea-ny-location",
+  "previewWebsite": null,
+  "searchKeyword": "dentist",
+  "searchLocation": "New York City",
+  "placeTypes": [
+    "dentist",
+    "dental_clinic",
+    "medical_clinic",
+    "doctor",
+    "health",
+    "point_of_interest",
+    "establishment"
+  ],
+  "googlePrimaryType": "dentist",
+  "googlePrimaryTypeDisplayName": "Dentist",
+  "rawData": {
+    "id": "ChIJeeeEfKVZwokR2RrvDsEYct8",
+    "types": [
+      "dentist",
+      "dental_clinic",
+      "medical_clinic",
+      "doctor",
+      "health",
+      "point_of_interest",
+      "establishment"
+    ],
+    "websiteUri": "https://www.preferreddentalcare.com/locations/chelsea-ny-location",
+    "displayName": {
+      "text": "Preferred Dental Care - Chelsea Dentist",
+      "languageCode": "en"
+    },
+    "primaryType": "dentist",
+    "googleMapsUri": "https://maps.google.com/?cid=16100958835261250265&g_mp=Cidnb29nbGUubWFwcy5wbGFjZXMudjEuUGxhY2VzLlNlYXJjaFRleHQQAhgEIAA",
+    "searchKeyword": "dentist",
+    "searchLocation": "New York City",
+    "formattedAddress": "135 W 27th St, New York, NY 10001, USA",
+    "nationalPhoneNumber": "(212) 594-7171",
+    "primaryTypeDisplayName": {
+      "text": "Dentist",
+      "languageCode": "en-US"
+    },
+    "internationalPhoneNumber": "+1 212-594-7171"
+  }
+}
