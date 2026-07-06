@@ -1,0 +1,75 @@
+import { spawn } from 'child_process';
+import path from 'path';
+import { NextResponse } from 'next/server';
+import { readClients, updateClient } from '../../../lib/client-store';
+
+function repoRoot() {
+  return path.resolve(process.cwd(), '..');
+}
+
+function runGenerator(business: unknown) {
+  const script = `
+import json
+import sys
+from backend.app.services.site_generator import generate_site
+business = json.load(sys.stdin)
+site = generate_site(business)
+print(json.dumps({"slug": site.slug, "path": str(site.path), "refined_with_codex": site.refined_with_codex}))
+`;
+
+  return new Promise<{ path?: string }>((resolve, reject) => {
+    const child = spawn('python3', ['-c', script], {
+      cwd: repoRoot(),
+      env: process.env,
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    let stdout = '';
+    let stderr = '';
+    child.stdout.on('data', (chunk) => { stdout += chunk.toString(); });
+    child.stderr.on('data', (chunk) => { stderr += chunk.toString(); });
+    child.on('error', reject);
+    child.on('close', (code) => {
+      if (code !== 0) {
+        reject(new Error(stderr || stdout || `Generator exited with code ${code}`));
+        return;
+      }
+      const lines = stdout.trim().split(/\n/).filter(Boolean);
+      resolve(JSON.parse(lines[lines.length - 1] || '{}'));
+    });
+    child.stdin.write(JSON.stringify(business));
+    child.stdin.end();
+  });
+}
+
+export async function POST(request: Request) {
+  const body = await request.json();
+  const id = String(body.id || '');
+  const clients = await readClients();
+  const client = clients.find((item) => item.id === id);
+
+  if (!client) {
+    return NextResponse.json({ error: 'Client not found.' }, { status: 404 });
+  }
+
+  await updateClient(id, { status: 'generating', error: '', generatedSitePath: '' });
+
+  try {
+    const result = await runGenerator({
+      name: client.name,
+      business_type: client.businessType,
+      city: client.city,
+      service_area: client.serviceArea || client.city,
+      website: client.website,
+      email: client.email,
+      phone: client.phone,
+      notes: client.notes,
+      photos: client.photos,
+    });
+    const updated = await updateClient(id, { status: 'generated', error: '', generatedSitePath: result.path || '' });
+    return NextResponse.json({ client: updated, result });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Site generation failed.';
+    const updated = await updateClient(id, { status: 'error', error: message });
+    return NextResponse.json({ error: message, client: updated }, { status: 500 });
+  }
+}
