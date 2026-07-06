@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 .venv/
 .env
+.env.local
 *.local
 
 # Node / Next.js
@@ -14,6 +15,11 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+
+# Raspberry Pi runtime state
+.runtime/
+*.sqlite
+*.sqlite3
 
 # Generated output
 generated_sites/
