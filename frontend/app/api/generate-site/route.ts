@@ -3,8 +3,24 @@ import path from 'path';
 import { NextResponse } from 'next/server';
 import { readClients, updateClient } from '../../../lib/client-store';
 
+type ClientRecord = Awaited<ReturnType<typeof readClients>>[number];
+
 function repoRoot() {
   return path.resolve(process.cwd(), '..');
+}
+
+function toBusiness(client: ClientRecord) {
+  return {
+    name: client.name,
+    business_type: client.businessType,
+    city: client.city,
+    service_area: client.serviceArea || client.city,
+    website: client.website,
+    email: client.email,
+    phone: client.phone,
+    notes: client.notes,
+    photos: client.photos,
+  };
 }
 
 function runGenerator(business: unknown) {
@@ -41,35 +57,45 @@ print(json.dumps({"slug": site.slug, "path": str(site.path), "refined_with_codex
   });
 }
 
+function requestIds(body: { id?: unknown; ids?: unknown }) {
+  const ids = Array.isArray(body.ids) ? body.ids : body.id ? [body.id] : [];
+  return [...new Set(ids.map((id) => String(id || '').trim()).filter(Boolean))];
+}
+
 export async function POST(request: Request) {
   const body = await request.json();
-  const id = String(body.id || '');
+  const ids = requestIds(body);
+
+  if (!ids.length) {
+    return NextResponse.json({ error: 'No leads selected.' }, { status: 400 });
+  }
+
   const clients = await readClients();
-  const client = clients.find((item) => item.id === id);
+  const selected = ids.map((id) => clients.find((item) => item.id === id)).filter(Boolean) as ClientRecord[];
 
-  if (!client) {
-    return NextResponse.json({ error: 'Client not found.' }, { status: 404 });
+  if (!selected.length) {
+    return NextResponse.json({ error: 'Selected leads were not found.' }, { status: 404 });
   }
 
-  await updateClient(id, { status: 'generating', error: '', generatedSitePath: '' });
-
-  try {
-    const result = await runGenerator({
-      name: client.name,
-      business_type: client.businessType,
-      city: client.city,
-      service_area: client.serviceArea || client.city,
-      website: client.website,
-      email: client.email,
-      phone: client.phone,
-      notes: client.notes,
-      photos: client.photos,
-    });
-    const updated = await updateClient(id, { status: 'generated', error: '', generatedSitePath: result.path || '' });
-    return NextResponse.json({ client: updated, result });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Site generation failed.';
-    const updated = await updateClient(id, { status: 'error', error: message });
-    return NextResponse.json({ error: message, client: updated }, { status: 500 });
+  for (const client of selected) {
+    await updateClient(client.id, { status: 'queued', error: '', generatedSitePath: client.generatedSitePath || '' });
   }
+
+  const results = [];
+  for (const client of selected) {
+    await updateClient(client.id, { status: 'generating', error: '', generatedSitePath: '' });
+    try {
+      const result = await runGenerator(toBusiness(client));
+      const updated = await updateClient(client.id, { status: 'generated', error: '', generatedSitePath: result.path || '' });
+      results.push({ id: client.id, ok: true, client: updated, result });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Site generation failed.';
+      const updated = await updateClient(client.id, { status: 'error', error: message });
+      results.push({ id: client.id, ok: false, client: updated, error: message });
+    }
+  }
+
+  const latest = await readClients();
+  const failed = results.filter((item) => !item.ok);
+  return NextResponse.json({ clients: latest, results, failed: failed.length }, { status: failed.length ? 207 : 200 });
 }
