@@ -1,87 +1,145 @@
-# Professional Website Generation Prompt
+# Website Builder Prompt
 
-You are refining a generated premium local-business landing page. The project already contains a compact `data/site-plan.json`, `data/business.json`, `data/design.json`, and `data/sections.json`. Use those files as the source of truth instead of inventing a new site from scratch.
+You are working inside a generated Next.js project folder. Your job is to create a unique, production-quality website for the supplied business.
 
-## Goal
+This is not a template-filling task. The existing project is only a scaffold so the site can build. You may rewrite the page, CSS, component structure, layout, data usage, typography, spacing, and responsive behaviour as needed.
 
-Improve the generated website so it feels like a polished agency-built site: visually refined, fast, responsive, credible, specific, and built to convert visitors into phone calls, quote requests, bookings, or form submissions.
+## Source of truth
 
-## Architecture rules
+Use the business data supplied in the prompt and in `data/business.json` as factual source material.
 
-1. Do not turn this into one template. Preserve variant-driven rendering through `data/design.json` and `data/sections.json`.
-2. Do not paste or rewrite whole files unless a focused patch is not enough.
-3. Keep the generated site static and deployable on Vercel.
-4. Do not add dependencies unless the quality gain is obvious and build-safe.
-5. Prefer small high-leverage changes over large speculative rewrites.
-6. Keep business data in JSON and presentation in React/CSS. Do not hardcode one company's copy into reusable template code.
+You may also inspect:
 
-## Non-negotiable standards
+- `data/generation-mode.json`
+- `data/site-plan.json`
+- `data/design.json`
+- `data/sections.json`
+- existing `app/page.tsx`
+- existing CSS files
 
-1. **No generic AI copy.** Avoid phrases like "we are passionate", "top-notch", "best in class", "your trusted partner", "exceed expectations", and other vague filler.
-2. **Keep text concise.** Web users scan. Use short paragraphs, meaningful headings, strong bullets, and one idea per section.
-3. **Start with the outcome.** The hero must immediately answer: what service this is, where it operates, why the visitor should trust it, and what action to take.
-4. **Conversion first.** Every major section should support the primary CTA. Do not add decorative sections that do not increase trust, clarity, urgency, or intent.
-5. **Use proof responsibly.** Do not invent licences, awards, years in business, review counts, brand partnerships, emergency availability, or guarantees unless provided in the input.
-6. **Use industry-specific details.** Infer realistic service details from the business type, but do not make unverifiable claims.
-7. **Make it feel expensive.** Use intentional spacing, editorial layout, layered cards, restrained motion, confident typography, strong contrast, and real business imagery when supplied.
-8. **Mobile must be excellent.** The mobile page should have a visible sticky CTA, readable type, strong spacing, and no horizontal overflow.
-9. **Performance matters.** Keep generated pages lean. Avoid unnecessary dependencies, heavy animation, large remote images, and layout shift.
-10. **Accessibility matters.** Use semantic HTML, readable contrast, keyboard-focusable CTAs, descriptive labels, and logical heading order.
+Those files are seed context only. They are not a required layout, not a required section order, and not a required visual system.
 
-## Image and uniqueness rules
+## Main objective
 
-- If `data/business.json` contains `photos` or `heroImage`, use those images intentionally in the hero, gallery ribbon, or supporting cards.
-- Never add unrelated stock images just to make the site look better.
-- If images are missing, improve the site with layout, typography, cards, colour, and copy instead of fake photos.
-- Each business should feel different through design-system choice, section variants, image strategy, CTA wording, industry-specific copy, and service ordering.
-- Do not over-crop logos or tiny UI screenshots as hero photography. Use them smaller or remove them if they weaken the page.
+Build a custom site that feels made for this specific business, not copied from a vertical template.
 
-## Agent workflow
+The final site should:
 
-When Claude Code project agents are available, use them this way:
+- look premium and intentional
+- clearly explain the business and next step
+- use the business's actual photos when supplied
+- avoid fake proof and exaggerated claims
+- be excellent on mobile
+- build successfully with `npm run build`
+- remain deployable as a static Next.js/Vercel site
 
-1. `business-profiler` verifies vertical, customer intent, image availability, trust gaps, and unsafe claims.
-2. `conversion-strategist` checks section order, CTA hierarchy, and objection handling.
-3. `brand-director` improves design-system fit and premium visual direction.
-4. `copy-polisher` removes generic text and tightens CTAs.
-5. `frontend-refiner` applies focused React/CSS improvements.
-6. `visual-qa` checks mobile, hierarchy, spacing, CTA visibility, image handling, and fake proof.
+## What you are allowed to change
 
-## Copywriting rules
+You may change, rewrite, or replace:
 
-- Headlines should be specific, useful, and local when possible.
-- CTA labels must be action-oriented: "Request a quote", "Call now", "Book an assessment", "Schedule service".
-- Replace vague benefits with concrete ones:
-  - weak: "High quality service"
-  - strong: "Clear diagnosis before work starts"
-- Use direct, objective language.
-- Keep paragraphs mostly under 28 words.
-- Use local SEO naturally, not through keyword stuffing.
+- `app/page.tsx`
+- `app/globals.css`
+- any local CSS imported by the app
+- local components you create
+- how JSON data is read and rendered
+- section order
+- CTA hierarchy
+- page structure
+- visual direction
+- responsive layout
+- image treatment
+- microcopy
 
-## Visual direction
+You may remove unused scaffold imports, unused sections, or generic layout code.
 
-Design should resemble a premium modern agency site:
+Do not preserve code just because it already exists. Keep only what improves the final site.
 
-- clear typographic scale
-- strong above-the-fold composition
-- generous whitespace
-- soft shadows and borders
-- editorial cards
-- polished CTA buttons
-- restrained colour palette derived from the business type
-- real business photos when supplied
-- no cheap clipart
+## What you should not do
+
+Do not:
+
+- create hardcoded reusable vertical templates
+- force every restaurant, plumber, clinic, or law firm into the same structure
+- add unrelated stock photos
+- invent awards, licences, certifications, review counts, ratings, prices, guarantees, emergency availability, menu items, case results, client names, or years in business
+- add fake testimonials
+- overstuff local SEO keywords
+- add heavy dependencies unless absolutely necessary
+- break Vercel/static deployment assumptions
+
+## How to design the site
+
+Start from the business itself. Infer the best structure from the business data, not from a predetermined backend template.
+
+For each site, decide:
+
+- what the visitor most likely wants
+- what action the page should drive
+- what proof is actually available
+- whether the site should be urgent, calm, editorial, luxurious, technical, clinical, local, visual, or minimal
+- how photos should be used if supplied
+- what should be removed because it feels generic
+
+The site can be one page, but it should not feel like a generic landing-page checklist. Use only sections that make sense for the business.
+
+## Copy standards
+
+Use concise, specific copy. Prefer direct sentences over marketing filler.
+
+Avoid phrases like:
+
+- top-notch
+- world-class
+- best in class
+- your trusted partner
+- exceed expectations
+- passionate about serving
+- cutting-edge solutions
+- award-winning unless provided
+
+Every headline should earn its place. Every paragraph should help the visitor understand, trust, or act.
+
+## Image standards
+
+If `photos` or `heroImage` are provided:
+
+- use them intentionally
+- write descriptive alt text
+- crop with care
+- avoid stretching or using tiny logos as full hero photos
+- use weaker images smaller if needed
+
+If no real photos are provided:
+
+- do not add fake stock photos
+- create quality through typography, spacing, cards, layout, gradients, and copy
+
+## UI/UX standards
+
+The final site should have:
+
+- a strong above-the-fold composition
+- clear primary CTA
+- scannable sections
+- polished spacing
+- premium typography hierarchy
+- accessible contrast
+- mobile sticky or repeated CTA when appropriate
+- no horizontal overflow
 - no crowded hero
-- no fake stock testimonials
+- no tiny unreadable text
+- no dead links unless no contact method exists
 
-## Output quality checklist
+## Build requirement
 
-Before finishing, verify:
+Before finishing, make sure the project is internally consistent and should pass:
 
-- Hero communicates service, location, value, and CTA within 5 seconds.
-- Page does not rely on fake awards, fake reviews, or exaggerated claims.
-- Copy is concise, scannable, and objective.
-- Mobile CTA is obvious.
-- Supplied business photos are used correctly, with useful alt text and no broken layout.
-- Sections flow from problem → trust → service → process → proof → CTA.
-- `npm run build` should pass.
+```bash
+npm run build
+```
+
+If dependencies are already installed, run the build. If they are not installed, keep changes conservative and build-safe.
+
+## Final mindset
+
+You are not refining a template. You are using a scaffold and a prompt to create a custom website. The backend provides facts and constraints; you provide the design, UX, and final implementation.

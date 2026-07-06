@@ -1,57 +1,39 @@
-"""Website generation service.
-
-GitHub is the source of truth for this file. The Raspberry Pi should run a direct
-copy of the repository instead of keeping separate local-only generator logic.
-
-The generator no longer relies on one template and one huge prompt. It now:
-1. normalizes business data,
-2. selects a design system,
-3. creates a compact site plan,
-4. writes business/design/section JSON into the generated site,
-5. optionally launches Claude Code project subagents for refinement.
-"""
-
 from __future__ import annotations
 
 import json
 import re
-import shutil
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
 
 try:
-    from .agentic_site_builder import build_claude_agent_prompt, build_site_plan, run_claude_refinement, write_site_plan
     from .env_loader import load_local_env
-except ImportError:  # pragma: no cover - lets this file run as a direct script during local debugging.
-    from agentic_site_builder import build_claude_agent_prompt, build_site_plan, run_claude_refinement, write_site_plan
+    from .scaffold_writer import assert_replaced, reset_dir, write_minimal_project
+except ImportError:
     from env_loader import load_local_env
-
+    from scaffold_writer import assert_replaced, reset_dir, write_minimal_project
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 PROMPT_FILE = REPO_ROOT / "backend" / "app" / "prompts" / "website_generation_prompt.md"
-TEMPLATE_DIR = REPO_ROOT / "site-template"
 DEFAULT_OUTPUT_DIR = REPO_ROOT / "generated_sites"
 
 
 @dataclass(frozen=True)
 class GeneratedSite:
-    """Result returned after rendering a website folder."""
-
     slug: str
     path: Path
     business_name: str
-    design_system: str
+    design_system: str = "agent-built"
+    refined_with_codex: bool = False
+    refined_with_claude: bool = False
 
 
 class SiteGenerationError(RuntimeError):
-    """Raised when the site generator cannot safely complete a build step."""
+    pass
 
 
 def slugify(value: str, fallback: str = "generated-site") -> str:
-    """Return a lowercase dash-separated slug safe for repos and folders."""
-
     cleaned = re.sub(r"[^a-zA-Z0-9]+", "-", value.strip().lower()).strip("-")
     cleaned = re.sub(r"-{2,}", "-", cleaned)
     return cleaned or fallback
@@ -64,33 +46,25 @@ def _string(value: Any, fallback: str = "") -> str:
     return text if text else fallback
 
 
-def _list(value: Any, fallback: list[Any] | None = None) -> list[Any]:
+def _list(value: Any) -> list[Any]:
     if isinstance(value, list):
         return value
     if value in (None, ""):
-        return fallback or []
+        return []
     return [value]
 
 
 def _public_image_url(value: Any) -> str:
     text = _string(value)
-    if not text:
+    if not text or not re.match(r"^https?://", text, flags=re.IGNORECASE):
         return ""
-    if not re.match(r"^https?://", text, flags=re.IGNORECASE):
-        return ""
-    if any(marker in text.lower() for marker in ("data:image", "base64,", "schema.org")):
+    lowered = text.lower()
+    if "data:image" in lowered or "base64," in lowered or "schema.org" in lowered:
         return ""
     return text
 
 
 def _photo_list(raw: Mapping[str, Any], business_name: str) -> list[dict[str, str]]:
-    """Return a small, safe list of public business photos.
-
-    Photos should come from lead data, the business's own site, or another public
-    source attached to that business. The generator should not invent stock photos
-    or hotlink unrelated imagery just to make the page look rich.
-    """
-
     sources: list[Any] = []
     for key in (
         "photos",
@@ -108,9 +82,7 @@ def _photo_list(raw: Mapping[str, Any], business_name: str) -> list[dict[str, st
         "scrapedImages",
     ):
         sources.extend(_list(raw.get(key)))
-
-    hero_candidates = _list(raw.get("hero_image") or raw.get("heroImage") or raw.get("cover_image") or raw.get("coverImage"))
-    sources = hero_candidates + sources
+    sources = _list(raw.get("hero_image") or raw.get("heroImage") or raw.get("cover_image") or raw.get("coverImage")) + sources
 
     photos: list[dict[str, str]] = []
     seen: set[str] = set()
@@ -119,221 +91,111 @@ def _photo_list(raw: Mapping[str, Any], business_name: str) -> list[dict[str, st
             url = _public_image_url(item.get("url") or item.get("src") or item.get("secure_url") or item.get("image"))
             alt = _string(item.get("alt") or item.get("caption") or item.get("title"), f"{business_name} photo")
             caption = _string(item.get("caption") or item.get("title"))
-            kind = _string(item.get("kind") or item.get("type"), "business-photo")
-            source = _string(item.get("source") or item.get("credit"))
         else:
             url = _public_image_url(item)
             alt = f"{business_name} photo"
             caption = ""
-            kind = "business-photo"
-            source = ""
-
         if not url or url in seen:
             continue
         seen.add(url)
-        photo = {"url": url, "alt": alt, "kind": kind}
+        photo = {"url": url, "alt": alt}
         if caption:
             photo["caption"] = caption
-        if source:
-            photo["source"] = source
         photos.append(photo)
-        if len(photos) >= 8:
+        if len(photos) >= 12:
             break
-
     return photos
 
 
 def normalize_business_profile(raw: Mapping[str, Any]) -> dict[str, Any]:
-    """Normalize loose lead data into the schema consumed by the template.
-
-    The template intentionally uses a small, stable schema so generated sites do
-    not break when the lead data is incomplete. Never invent hard proof such as
-    licences, awards, review counts, warranties, or years in business.
-    """
-
-    name = _string(raw.get("name") or raw.get("business_name"), "Local Service Company")
-    business_type = _string(raw.get("business_type") or raw.get("businessType") or raw.get("category"), "local service")
-    city = _string(raw.get("city") or raw.get("location"), "your area")
+    name = _string(raw.get("name") or raw.get("business_name"), "Local Business")
+    business_type = _string(raw.get("business_type") or raw.get("businessType") or raw.get("category"), "local business")
+    city = _string(raw.get("city") or raw.get("location"))
     service_area = _string(raw.get("service_area") or raw.get("serviceArea"), city)
-    phone = _string(raw.get("phone") or raw.get("phone_number"))
-    email = _string(raw.get("email"))
-    website = _string(raw.get("website") or raw.get("url"))
     photos = _photo_list(raw, name)
-
-    primary_cta = _string(raw.get("primary_cta") or raw.get("primaryCta"), "Request a quote")
-    secondary_cta = _string(raw.get("secondary_cta") or raw.get("secondaryCta"), "See services")
-
-    services = _list(raw.get("services")) or [
-        {"title": "Assessment", "description": "Understand the issue, scope, and next step before work begins."},
-        {"title": "Repair and service", "description": "Practical work completed with clear communication and tidy follow-through."},
-        {"title": "Installation", "description": "Planned installation with attention to fit, finish, and long-term reliability."},
-        {"title": "Maintenance", "description": "Preventive service that helps reduce surprise problems later."},
-    ]
-
-    proof_points = _list(raw.get("proof_points") or raw.get("proofPoints")) or [
-        "Clear scope before work starts",
-        "Practical scheduling and communication",
-        f"Service across {service_area}",
-    ]
-
-    process_steps = _list(raw.get("process_steps") or raw.get("processSteps")) or [
-        {"title": "Tell us what you need", "description": "Share the issue, location, and timing so the request can be scoped properly."},
-        {"title": "Get a clear next step", "description": "Receive a practical recommendation, quote path, or booking option."},
-        {"title": "Complete the work", "description": "The job is handled with clear communication from start to finish."},
-    ]
-
-    faqs = _list(raw.get("faqs") or raw.get("faq")) or [
-        {
-            "question": f"Do you serve {service_area}?",
-            "answer": f"Yes. {name} works with customers across {service_area}. Contact the team with your address or project details to confirm availability.",
-        },
-        {
-            "question": "How do I get pricing?",
-            "answer": "Send a few details about the work needed. The team can explain the next step and whether a quote, assessment, or booking makes the most sense.",
-        },
-        {
-            "question": "What should I prepare before contacting you?",
-            "answer": "A short description, photos if available, the property location, and your preferred timing are usually enough to start.",
-        },
-    ]
-
-    reviews = _list(raw.get("reviews") or raw.get("testimonials"))
-
     return {
         "name": name,
         "slug": slugify(_string(raw.get("slug"), name)),
         "businessType": business_type,
         "city": city,
         "serviceArea": service_area,
-        "phone": phone,
-        "email": email,
-        "website": website,
-        "primaryCta": primary_cta,
-        "secondaryCta": secondary_cta,
-        "hero": {
-            "eyebrow": _string(raw.get("eyebrow"), f"{business_type.title()} in {service_area}"),
-            "headline": _string(
-                raw.get("headline"),
-                f"{name} helps {service_area} customers get {business_type} work done clearly and reliably.",
-            ),
-            "subheadline": _string(
-                raw.get("subheadline"),
-                "Get a clear next step, practical communication, and a cleaner service experience from first contact to finish.",
-            ),
-        },
+        "phone": _string(raw.get("phone") or raw.get("phone_number")),
+        "email": _string(raw.get("email")),
+        "website": _string(raw.get("website") or raw.get("url")),
+        "address": _string(raw.get("address")),
+        "primaryCta": _string(raw.get("primary_cta") or raw.get("primaryCta")),
+        "secondaryCta": _string(raw.get("secondary_cta") or raw.get("secondaryCta")),
+        "headline": _string(raw.get("headline")),
+        "subheadline": _string(raw.get("subheadline")),
+        "description": _string(raw.get("description") or raw.get("notes")),
+        "services": _list(raw.get("services")),
+        "proofPoints": _list(raw.get("proof_points") or raw.get("proofPoints")),
+        "processSteps": _list(raw.get("process_steps") or raw.get("processSteps")),
+        "reviews": _list(raw.get("reviews") or raw.get("testimonials")),
+        "faqs": _list(raw.get("faqs") or raw.get("faq")),
+        "offer": _string(raw.get("offer")),
+        "guarantee": _string(raw.get("guarantee")),
+        "brandTone": _string(raw.get("brand_tone") or raw.get("brandTone")),
         "heroImage": photos[0] if photos else None,
         "photos": photos,
-        "proofPoints": proof_points,
-        "services": services,
-        "processSteps": process_steps,
-        "reviews": reviews,
-        "faqs": faqs,
-        "offer": _string(raw.get("offer"), "Request a practical quote path based on your project details."),
-        "guarantee": _string(raw.get("guarantee"), "Clear communication before work begins."),
-        "brandTone": _string(raw.get("brand_tone") or raw.get("brandTone"), "premium, direct, calm, trustworthy"),
+        "rawLead": dict(raw),
     }
 
 
-def render_site_from_template(
-    raw_business: Mapping[str, Any],
-    output_dir: Path | str = DEFAULT_OUTPUT_DIR,
-    overwrite: bool = True,
-) -> GeneratedSite:
-    """Copy the canonical template and write compact plan files.
-
-    This still uses one canonical codebase, but it is no longer one visual
-    template. `design.json` and `sections.json` select different patterns.
-    """
-
-    if not TEMPLATE_DIR.exists():
-        raise SiteGenerationError(f"Missing canonical template folder: {TEMPLATE_DIR}")
-
+def prepare_site_scaffold(raw_business: Mapping[str, Any], output_dir: Path | str = DEFAULT_OUTPUT_DIR, overwrite: bool = True) -> GeneratedSite:
     business = normalize_business_profile(raw_business)
-    site_plan = build_site_plan(business)
     slug = slugify(business["slug"])
     target = Path(output_dir) / slug
+    try:
+        reset_dir(target, overwrite=overwrite)
+    except FileExistsError as exc:
+        raise SiteGenerationError(str(exc)) from exc
+    write_minimal_project(target, business)
+    return GeneratedSite(slug=slug, path=target, business_name=business["name"])
 
-    if target.exists():
-        if not overwrite:
-            raise SiteGenerationError(f"Target site already exists: {target}")
-        shutil.rmtree(target)
 
-    shutil.copytree(TEMPLATE_DIR, target)
-
-    data_dir = target / "data"
-    data_dir.mkdir(parents=True, exist_ok=True)
-    (data_dir / "business.json").write_text(
-        json.dumps(business, ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
-    )
-    write_site_plan(target, site_plan)
-
-    return GeneratedSite(
-        slug=slug,
-        path=target,
-        business_name=business["name"],
-        design_system=site_plan.design["id"],
-    )
+render_site_from_template = prepare_site_scaffold
 
 
 def build_codex_instruction(raw_business: Mapping[str, Any]) -> str:
-    """Build the exact instruction sent to Codex for optional refinement."""
-
     if not PROMPT_FILE.exists():
         raise SiteGenerationError(f"Missing prompt file: {PROMPT_FILE}")
-
     business = normalize_business_profile(raw_business)
-    site_plan = build_site_plan(business)
     prompt = PROMPT_FILE.read_text(encoding="utf-8").strip()
     return (
         f"{prompt}\n\n"
-        "## Compact site plan JSON\n"
+        "## Factual business data JSON\n"
         "```json\n"
-        f"{json.dumps(site_plan.as_dict(), ensure_ascii=False, separators=(',', ':'))}\n"
+        f"{json.dumps(business, ensure_ascii=False, indent=2)}\n"
         "```\n\n"
-        "Refine only where it improves quality, conversion, copy, responsiveness, performance, or maintainability. "
+        "You are inside a blank generated Next.js project folder. Build the real website from the business data. "
+        "Remove every occurrence of AGENTIC_REPLACE_ME from the project. "
+        "You may create components, rewrite app/page.tsx, rewrite CSS, and choose the full UI/UX. "
         "Use supplied business photos when present; never add unrelated stock photos or unverifiable claims. "
-        "Do not change deployment assumptions. Ensure the project builds.\n"
+        "Finish with a buildable site.\n"
     )
 
 
-def run_codex_refinement(site_path: Path, instruction: str, codex_command: str = "codex") -> None:
-    """Optionally run Codex inside a generated site folder.
-
-    `.env` and `.env.local` are loaded and forwarded to the Codex subprocess, so
-    local OAuth/API variables can be used without hardcoding secrets.
-    """
-
+def run_codex_refinement(site_path: Path, instruction: str, codex_command: str = "codex", timeout_seconds: int = 1800) -> None:
     if not site_path.exists():
-        raise SiteGenerationError(f"Cannot refine missing site path: {site_path}")
+        raise SiteGenerationError(f"Cannot run in missing site path: {site_path}")
+    subprocess.run([codex_command, "exec", instruction], cwd=site_path, check=True, text=True, env=load_local_env(), timeout=timeout_seconds)
 
-    subprocess.run([codex_command, "exec", instruction], cwd=site_path, check=True, text=True, env=load_local_env())
 
-
-def generate_site(
-    raw_business: Mapping[str, Any],
-    output_dir: Path | str = DEFAULT_OUTPUT_DIR,
-    refine_with_codex: bool = False,
-    refine_with_claude: bool = False,
-) -> GeneratedSite:
-    """Render a premium baseline website and optionally refine with agents."""
-
-    business = normalize_business_profile(raw_business)
-    site_plan = build_site_plan(business)
-    generated = render_site_from_template(business, output_dir=output_dir)
-
+def generate_site(raw_business: Mapping[str, Any], output_dir: Path | str = DEFAULT_OUTPUT_DIR, refine_with_codex: bool = True, refine_with_claude: bool = False) -> GeneratedSite:
+    generated = prepare_site_scaffold(raw_business, output_dir=output_dir)
+    used_codex = False
+    used_claude = False
     if refine_with_codex:
-        instruction = build_codex_instruction(business)
-        run_codex_refinement(generated.path, instruction)
-
+        run_codex_refinement(generated.path, build_codex_instruction(raw_business))
+        try:
+            assert_replaced(generated.path)
+        except RuntimeError as exc:
+            raise SiteGenerationError(str(exc)) from exc
+        used_codex = True
     if refine_with_claude:
-        run_claude_refinement(site_plan, generated.path)
-
-    return generated
-
-
-def build_claude_instruction_preview(raw_business: Mapping[str, Any], target_path: Path | str = "generated_sites/<slug>") -> str:
-    """Return the compact Claude Code orchestration prompt without running it."""
-
-    business = normalize_business_profile(raw_business)
-    return build_claude_agent_prompt(build_site_plan(business), Path(target_path))
+        from .agentic_site_builder import build_site_plan, run_claude_refinement
+        business = normalize_business_profile(raw_business)
+        run_claude_refinement(build_site_plan(business), generated.path)
+        used_claude = True
+    return GeneratedSite(slug=generated.slug, path=generated.path, business_name=generated.business_name, refined_with_codex=used_codex, refined_with_claude=used_claude)
