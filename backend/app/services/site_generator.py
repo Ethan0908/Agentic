@@ -18,6 +18,7 @@ except ImportError:
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 PROMPT_FILE = REPO_ROOT / "backend" / "app" / "prompts" / "website_generation_prompt.md"
+PLAYBOOK_FILE = REPO_ROOT / "backend" / "app" / "prompts" / "premium_website_playbook.md"
 DEFAULT_OUTPUT_DIR = REPO_ROOT / "generated_sites"
 
 
@@ -149,20 +150,28 @@ def prepare_site_scaffold(raw_business: Mapping[str, Any], output_dir: Path | st
 render_site_from_template = prepare_site_scaffold
 
 
+def _optional_file(path: Path) -> str:
+    return path.read_text(encoding="utf-8").strip() if path.exists() else ""
+
+
 def build_codex_instruction(raw_business: Mapping[str, Any]) -> str:
     if not PROMPT_FILE.exists():
         raise SiteGenerationError(f"Missing prompt file: {PROMPT_FILE}")
     business = normalize_business_profile(raw_business)
     prompt = PROMPT_FILE.read_text(encoding="utf-8").strip()
+    playbook = _optional_file(PLAYBOOK_FILE)
     return (
         f"{prompt}\n\n"
+        f"## Premium website skill/playbook\n{playbook}\n\n"
         "## Factual business data JSON\n"
         "```json\n"
         f"{json.dumps(business, ensure_ascii=False, indent=2)}\n"
         "```\n\n"
+        "Before coding, choose one design concept and encode it in the page structure and CSS. "
+        "Do not output your explanation; implement the site. "
         "You are inside a blank generated Next.js project folder. Build the real website from the business data. "
         "Remove every occurrence of AGENTIC_REPLACE_ME from the project. "
-        "You may create components, rewrite app/page.tsx, rewrite CSS, and choose the full UI/UX. "
+        "Rewrite app/page.tsx and app/globals.css as a custom site. "
         "Use supplied business photos when present; never add unrelated stock photos or unverifiable claims. "
         "Finish with a buildable site.\n"
     )
@@ -183,7 +192,6 @@ def _codex_command(default_command: str = "codex") -> list[str]:
 
 def _codex_exec_args() -> list[str]:
     sandbox = os.environ.get("CODEX_SANDBOX", "danger-full-access").strip()
-    # Docker already isolates this process. danger-full-access avoids bubblewrap/user-namespace failures inside Raspberry Pi containers.
     return ["exec", "--sandbox", sandbox]
 
 
