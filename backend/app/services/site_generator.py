@@ -24,10 +24,11 @@ except ImportError:
 REPO_ROOT = Path(__file__).resolve().parents[3]
 PROMPT_FILE = REPO_ROOT / "backend" / "app" / "prompts" / "website_generation_prompt.md"
 PLAYBOOK_FILE = REPO_ROOT / "backend" / "app" / "prompts" / "premium_website_playbook.md"
+REDESIGN_CONTRACT_FILE = REPO_ROOT / "backend" / "app" / "prompts" / "full_site_redesign_contract.md"
 SKILLS_DIR = REPO_ROOT / "backend" / "app" / "skills"
 DEFAULT_OUTPUT_DIR = REPO_ROOT / "generated_sites"
 DEFAULT_CODEX_REASONING_EFFORT = "high"
-CODEX_STAGE_SEQUENCE = ("plan", "foundation", "hero", "content", "interactions", "visual-director", "polish")
+CODEX_STAGE_SEQUENCE = ("plan", "full-site-redesign", "visual-director", "polish")
 
 
 @dataclass(frozen=True)
@@ -179,13 +180,20 @@ def install_codex_skills(target: Path) -> None:
 
 def write_design_briefs(target: Path, business: Mapping[str, Any]) -> None:
     install_codex_skills(target)
+    redesign_contract = _optional_file(REDESIGN_CONTRACT_FILE)
+    if redesign_contract:
+        _write_text(target / "FULL_SITE_REDESIGN_CONTRACT.md", redesign_contract)
     _write_text(target / "AGENTS.md", """# Generated Site Instructions
 
-Read `.codex/skills/design-taste-frontend/SKILL.md`, `.codex/skills/gpt-taste/SKILL.md`, and `LUXURY_BASELINE.md` before editing UI code.
+Read `.codex/skills/design-taste-frontend/SKILL.md`, `.codex/skills/gpt-taste/SKILL.md`, `FULL_SITE_REDESIGN_CONTRACT.md`, `DESIGN_STUDIO_BRIEF.md`, and `LUXURY_BASELINE.md` before editing UI code.
 
-Build in stages: plan, foundation, header/hero, content sections, interactions, visual-director, polish.
+## Important
 
-Start from the premium baseline. Improve it. Do not replace it with a generic card stack. Use factual JSON from `data/`. Use real business photos/logo/brand colours when supplied. Do not invent claims. Keep the site static, dependency-light, responsive, and Vercel-friendly.
+The baseline is only a fallback/reference. Codex is allowed and expected to rewrite the entire frontend when the baseline looks scaffold-like or not premium enough.
+
+Codex may edit `app/page.tsx`, `app/globals.css`, `app/layout.tsx`, add components, and update `package.json` if a dependency is genuinely needed and the final project remains buildable.
+
+Use factual JSON from `data/`. Use real business photos/logo/brand colours when supplied. Do not invent claims. The finished site must look like a custom premium studio build, not a generic local-business scaffold.
 """)
     _write_text(target / "DESIGN_STUDIO_BRIEF.md", f"""# Design Studio Brief
 
@@ -196,7 +204,7 @@ Photos supplied: {'yes' if business.get('photos') else 'no'}
 Logo supplied: {'yes' if business.get('logo') else 'no'}
 Stock assets allowed: {'yes' if business.get('allowStockAssets') else 'no'}
 
-The goal is a custom local-business website that looks intentionally designed, not a generic scaffold. Start with a plan/spec, then build component by component.
+The goal is a custom local-business website that looks intentionally designed, not a generic scaffold. Plan first, then perform a full-site redesign. Do not merely fill the baseline with text.
 """)
 
 
@@ -243,14 +251,16 @@ def _business_and_plan_context(raw_business: Mapping[str, Any]) -> tuple[dict[st
 
 def build_codex_plan_instruction(raw_business: Mapping[str, Any]) -> str:
     _, _, context = _business_and_plan_context(raw_business)
+    redesign_contract = _optional_file(REDESIGN_CONTRACT_FILE)
     return (
         "You are in Plan Mode for a generated Next.js business website. Do not edit app/page.tsx or app/globals.css yet.\n\n"
-        "Read AGENTS.md, DESIGN_STUDIO_BRIEF.md, LUXURY_BASELINE.md, data/style-signature.json, .codex/skills/design-taste-frontend/SKILL.md, and .codex/skills/gpt-taste/SKILL.md.\n\n"
+        "Read AGENTS.md, DESIGN_STUDIO_BRIEF.md, FULL_SITE_REDESIGN_CONTRACT.md, LUXURY_BASELINE.md, data/style-signature.json, .codex/skills/design-taste-frontend/SKILL.md, and .codex/skills/gpt-taste/SKILL.md.\n\n"
+        f"## Full-site redesign contract\n{redesign_contract}\n\n"
         f"{context}\n\n"
         "Create two planning files only:\n"
-        "1. DESIGN_SPEC.md with a detailed implementation spec covering site structure, component order, interactions, CTA map, colour scheme, typography, asset/branding plan, responsive behaviour, and QA risks.\n"
+        "1. DESIGN_SPEC.md with a detailed implementation spec covering the complete site concept, page structure, component order, interactions, CTA map, colour scheme, typography, asset/branding plan, responsive behaviour, and QA risks.\n"
         "2. data/implementation-plan.json with keys: designRead, dials, colourScheme, typography, assetPlan, sections, components, interactions, ctaMap, mobilePlan, stagePlan, qaChecklist.\n\n"
-        "The plan must explicitly explain how the premium baseline will be elevated into a more expensive-looking site. If an interaction such as FAQ accordion, contact drawer, service toggle, or pricing toggle does not fit the data, do not force it.\n"
+        "The plan must describe a full-site redesign, not a scaffold fill-in. It must explicitly say what baseline/scaffold elements should be deleted or replaced to make the site look premium.\n"
     )
 
 
@@ -259,29 +269,28 @@ def build_codex_stage_instruction(raw_business: Mapping[str, Any], stage: str) -
         raise SiteGenerationError(f"Missing prompt file: {PROMPT_FILE}")
     prompt = PROMPT_FILE.read_text(encoding="utf-8").strip()
     playbook = _optional_file(PLAYBOOK_FILE)
+    redesign_contract = _optional_file(REDESIGN_CONTRACT_FILE)
     _, _, context = _business_and_plan_context(raw_business)
     stage_guidance = {
-        "foundation": "Audit the premium baseline. Refine component architecture, data helpers, CTA helpers, CSS variables, type scale, spacing scale, and responsive rules without making the design generic.",
-        "hero": "Upgrade the header/navigation and hero. The first viewport must feel expensive: wide typography, disciplined negative space, intentional visual object/photo treatment, and a real CTA path.",
-        "content": "Upgrade the body sections with varied rhythms: proof rail, service matrix, process timeline, photo ribbon, location/contact panel, FAQ, and final CTA as appropriate. Avoid repeated equal cards.",
-        "interactions": "Add only useful interactions: FAQ accordion, service/category toggle, contact drawer, sticky mobile CTA, hover states, or modal if the plan supports them. Keep it dependency-light and build-safe.",
-        "visual-director": "Act as a senior visual director. Ruthlessly remove 5/10 choices: weak gradients, cramped spacing, samey cards, narrow hero text, fake labels, low-contrast buttons, cheap shadows, and generic copy. Make it look more expensive while preserving facts.",
-        "polish": "Perform final build-safety cleanup. Remove scaffold residue, improve mobile layout, contrast, CTA links, and generic copy. Run npm run build if dependencies are installed.",
+        "full-site-redesign": "Perform the main full-site redesign now. You have authority to rewrite app/page.tsx, app/globals.css, app/layout.tsx, add components, and update package.json if needed. Delete baseline/scaffold structure that looks cheap. Build one coherent premium website from the plan, not a filled template.",
+        "visual-director": "Act as a senior visual director reviewing the entire site. Rewrite anything that still looks 5/10: scaffold-like text blocks, weak first viewport, repeated cards, cramped spacing, cheap gradients, generic headings, low-contrast CTAs, and sections that could belong to any business.",
+        "polish": "Perform final production cleanup across the whole site. Improve mobile, spacing, contrast, accessibility, links, and build safety. Remove dead code and run npm run build if dependencies are installed.",
     }[stage]
     return (
         f"{prompt}\n\n"
+        f"## Full-site redesign contract\n{redesign_contract}\n\n"
         f"## Premium website playbook\n{playbook}\n\n"
         f"## Persistent frontend skills\n{_skill_text('design-taste-frontend')}\n\n{_skill_text('gpt-taste')}\n\n"
         f"{context}\n\n"
         f"## Current stage: {stage}\n{stage_guidance}\n\n"
-        "You must read DESIGN_SPEC.md, LUXURY_BASELINE.md, data/style-signature.json, and data/implementation-plan.json before editing. "
-        "Work only on this stage's responsibilities, while preserving and improving earlier completed work. "
+        "You must read DESIGN_SPEC.md, FULL_SITE_REDESIGN_CONTRACT.md, data/style-signature.json, and data/implementation-plan.json before editing. "
+        "You are not required to preserve baseline structure. Preserve only the factual business data and any genuinely strong design choices. "
         "Do not output explanations. Implement the files.\n"
     )
 
 
 def build_codex_instruction(raw_business: Mapping[str, Any]) -> str:
-    return build_codex_stage_instruction(raw_business, "polish")
+    return build_codex_stage_instruction(raw_business, "full-site-redesign")
 
 
 def _codex_command(default_command: str = "codex") -> list[str]:
@@ -322,7 +331,7 @@ def _codex_exec_args() -> list[str]:
     return ["exec", "--sandbox", sandbox, *_codex_config_args()]
 
 
-def run_codex_refinement(site_path: Path, instruction: str, codex_command: str = "codex", timeout_seconds: int = 2400) -> None:
+def run_codex_refinement(site_path: Path, instruction: str, codex_command: str = "codex", timeout_seconds: int = 3600) -> None:
     if not site_path.exists():
         raise SiteGenerationError(f"Cannot run in missing site path: {site_path}")
     command = [*_codex_command(codex_command), *_codex_exec_args(), instruction]
