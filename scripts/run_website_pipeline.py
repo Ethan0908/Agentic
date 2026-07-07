@@ -14,6 +14,7 @@ Usage:
     python3 scripts/run_website_pipeline.py leads
     python3 scripts/run_website_pipeline.py leads --continue-on-error
     python3 scripts/run_website_pipeline.py leads/example-plumber.json --preview
+    python3 scripts/run_website_pipeline.py leads/example-plumber.json --no-codex
 """
 
 from __future__ import annotations
@@ -134,6 +135,8 @@ def run_one_profile(profile_path: Path, options: PipelineOptions) -> GeneratedSi
         "path": str(site.path),
         "businessName": site.business_name,
         "designSystem": site.design_system,
+        "refinedWithCodex": site.refined_with_codex,
+        "refinedWithClaude": site.refined_with_claude,
     }, indent=2))
 
     if not options.skip_install:
@@ -153,8 +156,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Generate, install, build, and validate websites in one command.")
     parser.add_argument("profile", type=Path, help="Path to one JSON lead profile or a folder containing .json leads.")
     parser.add_argument("--output-dir", type=Path, default=REPO_ROOT / "generated_sites")
-    parser.add_argument("--claude", action="store_true", help="Run optional Claude Code subagent refinement after deterministic generation.")
-    parser.add_argument("--codex", action="store_true", help="Run optional Codex refinement after deterministic generation.")
+    parser.add_argument("--claude", action="store_true", help="Run optional Claude Code subagent refinement after Codex generation.")
+    parser.add_argument("--codex", action="store_true", help="Compatibility flag. Codex refinement is already on by default.")
+    parser.add_argument("--no-codex", action="store_true", help="Disable Codex refinement for scaffold-only tests.")
     parser.add_argument("--skip-install", action="store_true", help="Skip npm install/ci.")
     parser.add_argument("--skip-build", action="store_true", help="Skip npm run build.")
     parser.add_argument("--skip-quality", action="store_true", help="Skip the Python quality validator.")
@@ -174,7 +178,7 @@ def main() -> int:
         options = PipelineOptions(
             output_dir=args.output_dir,
             claude=args.claude,
-            codex=args.codex,
+            codex=not args.no_codex,
             skip_install=args.skip_install,
             skip_build=args.skip_build,
             skip_quality=args.skip_quality,
