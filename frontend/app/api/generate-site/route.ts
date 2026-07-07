@@ -8,6 +8,24 @@ import { publishToGithub, publishToVercel } from '../../../lib/site-publisher';
 type ClientRecord = Awaited<ReturnType<typeof readClients>>[number];
 type GenResult = { slug?: string; path?: string; design_system?: string; refined_with_codex?: boolean };
 
+type BusinessInput = {
+  name: string;
+  business_type: string;
+  city: string;
+  service_area: string;
+  website: string;
+  email: string;
+  phone: string;
+  notes: string;
+  photos: unknown;
+  address?: string;
+  rating?: string;
+  review_count?: string;
+  content_angles?: string[];
+  visitor_questions?: string[];
+  proof_points?: string[];
+};
+
 function repoRoot() { return path.resolve(process.cwd(), '..'); }
 function repoName(name: string) { return `site-${name}`.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 90) || 'site-generated'; }
 async function removeLocalSite(sitePath: string) { await fs.rm(sitePath, { recursive: true, force: true }).catch(() => undefined); }
@@ -17,8 +35,81 @@ function codexReasoningEffort() {
   return ['low', 'medium', 'high'].includes(value) ? value : 'high';
 }
 
-function toBusiness(client: ClientRecord) {
-  return { name: client.name, business_type: client.businessType, city: client.city, service_area: client.serviceArea || client.city, website: client.website, email: client.email, phone: client.phone, notes: client.notes, photos: client.photos };
+function extractRating(text: string) {
+  return text.match(/(?<!\d)([0-5](?:\.\d{1,2})?)\s*(?:\/\s*5\s*)?(?:google\s*)?rating\b/i)?.[1] || '';
+}
+
+function extractReviewCount(text: string) {
+  return (text.match(/\b([\d,]{1,7})\s*(?:google\s*)?reviews?\b/i)?.[1] || '').replace(/,/g, '');
+}
+
+function extractAddress(text: string) {
+  const streetTerms = /\b(street|st|avenue|ave|road|rd|boulevard|blvd|drive|dr|lane|ln|court|ct|place|pl|parkway|pkwy|highway|hwy|way|suite|ste)\b|#/i;
+  const candidates = text.split(/[•|\n]/).map((item) => item.trim()).filter(Boolean).reverse();
+  const exact = candidates.find((candidate) => /\d/.test(candidate) && streetTerms.test(candidate));
+  if (exact) return exact.replace(/^[,\s]+|[,\s]+$/g, '');
+  return text.match(/\b\d{1,6}\s+[A-Za-z0-9 .#'-]+(?:Street|St|Avenue|Ave|Road|Rd|Boulevard|Blvd|Drive|Dr|Lane|Ln|Way|Place|Pl)[^•\n|]*/i)?.[0]?.trim() || '';
+}
+
+function contentAnglesFor(businessType: string, address: string, rating: string, reviewCount: string, phone: string, website: string) {
+  const lowered = businessType.toLowerCase();
+  const angles: string[] = [];
+  if (/dentist|dental|clinic|medical|therapy|health/.test(lowered)) {
+    angles.push('appointment and booking questions', 'location and arrival details', 'care categories to ask the office about');
+  } else if (/plumb|hvac|electric|repair|contractor|roof/.test(lowered)) {
+    angles.push('problem type and urgency', 'service-area expectations', 'what to ask before booking');
+  } else if (/restaurant|bakery|barber|salon|spa/.test(lowered)) {
+    angles.push('visit intent and location', 'booking or ordering path', 'category expectations without inventing menu items or prices');
+  } else {
+    angles.push('what the business does', 'who the visitor is likely to be', 'how to take the next step');
+  }
+  if (address && !angles.includes('location and arrival details')) angles.push('location and arrival details');
+  if (rating || reviewCount) angles.push('public listing proof without exaggerating claims');
+  if (phone) angles.push('phone-first contact path');
+  else if (website) angles.push('website-first conversion path');
+  return [...new Set(angles)].slice(0, 6);
+}
+
+function visitorQuestionsFor(businessType: string, address: string, phone: string, website: string) {
+  const label = businessType.toLowerCase() || 'business';
+  const questions = [`What should I know before contacting this ${label}?`, 'What facts are available from the listing?'];
+  if (address) questions.push('Where is it located and how should I plan my visit?');
+  if (phone) questions.push('What should I ask when I call?');
+  if (website) questions.push('What can I confirm on the official website?');
+  return questions.slice(0, 5);
+}
+
+function toBusiness(client: ClientRecord): BusinessInput {
+  const notes = String(client.notes || '');
+  const businessType = String(client.businessType || '');
+  const website = String(client.website || '');
+  const phone = String(client.phone || '');
+  const rating = extractRating(notes);
+  const reviewCount = extractReviewCount(notes);
+  const address = extractAddress(notes);
+  const proofPoints = [
+    rating ? `${rating} Google rating` : '',
+    reviewCount ? `${reviewCount} Google reviews` : '',
+    address ? `Listed address: ${address}` : '',
+  ].filter(Boolean);
+
+  return {
+    name: client.name,
+    business_type: businessType,
+    city: client.city,
+    service_area: client.serviceArea || client.city,
+    website,
+    email: client.email,
+    phone,
+    notes,
+    photos: client.photos,
+    address,
+    rating,
+    review_count: reviewCount,
+    content_angles: contentAnglesFor(businessType, address, rating, reviewCount, phone, website),
+    visitor_questions: visitorQuestionsFor(businessType, address, phone, website),
+    proof_points: proofPoints,
+  };
 }
 
 function runGenerator(business: unknown): Promise<GenResult> {
