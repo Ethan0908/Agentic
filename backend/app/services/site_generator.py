@@ -13,10 +13,12 @@ from typing import Any, Mapping
 try:
     from .agentic_site_builder import build_site_plan, write_site_plan
     from .env_loader import load_local_env
+    from .premium_seed import write_premium_seed_site
     from .scaffold_writer import assert_replaced, reset_dir, write_minimal_project
 except ImportError:
     from agentic_site_builder import build_site_plan, write_site_plan
     from env_loader import load_local_env
+    from premium_seed import write_premium_seed_site
     from scaffold_writer import assert_replaced, reset_dir, write_minimal_project
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -25,7 +27,7 @@ PLAYBOOK_FILE = REPO_ROOT / "backend" / "app" / "prompts" / "premium_website_pla
 SKILLS_DIR = REPO_ROOT / "backend" / "app" / "skills"
 DEFAULT_OUTPUT_DIR = REPO_ROOT / "generated_sites"
 DEFAULT_CODEX_REASONING_EFFORT = "high"
-CODEX_STAGE_SEQUENCE = ("plan", "foundation", "hero", "content", "interactions", "polish")
+CODEX_STAGE_SEQUENCE = ("plan", "foundation", "hero", "content", "interactions", "visual-director", "polish")
 
 
 @dataclass(frozen=True)
@@ -179,11 +181,11 @@ def write_design_briefs(target: Path, business: Mapping[str, Any]) -> None:
     install_codex_skills(target)
     _write_text(target / "AGENTS.md", """# Generated Site Instructions
 
-Read `.codex/skills/design-taste-frontend/SKILL.md` and `.codex/skills/gpt-taste/SKILL.md` before editing UI code.
+Read `.codex/skills/design-taste-frontend/SKILL.md`, `.codex/skills/gpt-taste/SKILL.md`, and `LUXURY_BASELINE.md` before editing UI code.
 
-Build in stages: plan, foundation, header/hero, content sections, interactions, polish.
+Build in stages: plan, foundation, header/hero, content sections, interactions, visual-director, polish.
 
-Use factual JSON from `data/`. Use real business photos/logo/brand colours when supplied. Do not invent claims. Do not leave scaffold markers. Keep the site static, dependency-light, responsive, and Vercel-friendly.
+Start from the premium baseline. Improve it. Do not replace it with a generic card stack. Use factual JSON from `data/`. Use real business photos/logo/brand colours when supplied. Do not invent claims. Keep the site static, dependency-light, responsive, and Vercel-friendly.
 """)
     _write_text(target / "DESIGN_STUDIO_BRIEF.md", f"""# Design Studio Brief
 
@@ -209,6 +211,7 @@ def prepare_site_scaffold(raw_business: Mapping[str, Any], output_dir: Path | st
         raise SiteGenerationError(str(exc)) from exc
     write_minimal_project(target, business)
     write_site_plan(target, site_plan)
+    write_premium_seed_site(target, business, site_plan.as_dict())
     write_design_briefs(target, business)
     design_system = _string(site_plan.design.get("id"), "agent-built")
     return GeneratedSite(slug=slug, path=target, business_name=business["name"], design_system=design_system)
@@ -231,7 +234,7 @@ def _business_and_plan_context(raw_business: Mapping[str, Any]) -> tuple[dict[st
     site_plan = build_site_plan(business).as_dict()
     context = (
         "## Factual business data JSON\n```json\n"
-        f"{json.dumps(business, ensure_ascii=False, indent=2)}\n````\n\n"
+        f"{json.dumps(business, ensure_ascii=False, indent=2)}\n```\n\n"
         "## Generated design plan JSON\n```json\n"
         f"{json.dumps(site_plan, ensure_ascii=False, indent=2)}\n```\n"
     )
@@ -242,12 +245,12 @@ def build_codex_plan_instruction(raw_business: Mapping[str, Any]) -> str:
     _, _, context = _business_and_plan_context(raw_business)
     return (
         "You are in Plan Mode for a generated Next.js business website. Do not edit app/page.tsx or app/globals.css yet.\n\n"
-        "Read AGENTS.md, DESIGN_STUDIO_BRIEF.md, .codex/skills/design-taste-frontend/SKILL.md, and .codex/skills/gpt-taste/SKILL.md.\n\n"
+        "Read AGENTS.md, DESIGN_STUDIO_BRIEF.md, LUXURY_BASELINE.md, data/style-signature.json, .codex/skills/design-taste-frontend/SKILL.md, and .codex/skills/gpt-taste/SKILL.md.\n\n"
         f"{context}\n\n"
         "Create two planning files only:\n"
         "1. DESIGN_SPEC.md with a detailed implementation spec covering site structure, component order, interactions, CTA map, colour scheme, typography, asset/branding plan, responsive behaviour, and QA risks.\n"
         "2. data/implementation-plan.json with keys: designRead, dials, colourScheme, typography, assetPlan, sections, components, interactions, ctaMap, mobilePlan, stagePlan, qaChecklist.\n\n"
-        "The plan must explain how the site will avoid generic template output. If an interaction such as FAQ accordion, contact drawer, service toggle, or pricing toggle does not fit the data, do not force it.\n"
+        "The plan must explicitly explain how the premium baseline will be elevated into a more expensive-looking site. If an interaction such as FAQ accordion, contact drawer, service toggle, or pricing toggle does not fit the data, do not force it.\n"
     )
 
 
@@ -258,11 +261,12 @@ def build_codex_stage_instruction(raw_business: Mapping[str, Any], stage: str) -
     playbook = _optional_file(PLAYBOOK_FILE)
     _, _, context = _business_and_plan_context(raw_business)
     stage_guidance = {
-        "foundation": "Set up the final component architecture, data helpers, CTA helpers, page shell, CSS variables, type scale, spacing scale, and base responsive rules. Keep the placeholder only if a later stage immediately replaces it.",
-        "hero": "Implement the header/navigation and hero section only. Make the first viewport distinctive, high-converting, and specific to the business. Use real logo/photos/brand colours when supplied.",
-        "content": "Implement the core body sections: proof or expectations, services, process, decision guide, photo ribbon, location/contact panel, FAQ, and final CTA as appropriate to the plan.",
+        "foundation": "Audit the premium baseline. Refine component architecture, data helpers, CTA helpers, CSS variables, type scale, spacing scale, and responsive rules without making the design generic.",
+        "hero": "Upgrade the header/navigation and hero. The first viewport must feel expensive: wide typography, disciplined negative space, intentional visual object/photo treatment, and a real CTA path.",
+        "content": "Upgrade the body sections with varied rhythms: proof rail, service matrix, process timeline, photo ribbon, location/contact panel, FAQ, and final CTA as appropriate. Avoid repeated equal cards.",
         "interactions": "Add only useful interactions: FAQ accordion, service/category toggle, contact drawer, sticky mobile CTA, hover states, or modal if the plan supports them. Keep it dependency-light and build-safe.",
-        "polish": "Perform final visual QA and build-safety cleanup. Remove scaffold residue, improve spacing, mobile layout, contrast, CTA links, and generic copy. Run npm run build if dependencies are installed.",
+        "visual-director": "Act as a senior visual director. Ruthlessly remove 5/10 choices: weak gradients, cramped spacing, samey cards, narrow hero text, fake labels, low-contrast buttons, cheap shadows, and generic copy. Make it look more expensive while preserving facts.",
+        "polish": "Perform final build-safety cleanup. Remove scaffold residue, improve mobile layout, contrast, CTA links, and generic copy. Run npm run build if dependencies are installed.",
     }[stage]
     return (
         f"{prompt}\n\n"
@@ -270,7 +274,7 @@ def build_codex_stage_instruction(raw_business: Mapping[str, Any], stage: str) -
         f"## Persistent frontend skills\n{_skill_text('design-taste-frontend')}\n\n{_skill_text('gpt-taste')}\n\n"
         f"{context}\n\n"
         f"## Current stage: {stage}\n{stage_guidance}\n\n"
-        "You must read DESIGN_SPEC.md and data/implementation-plan.json before editing. "
+        "You must read DESIGN_SPEC.md, LUXURY_BASELINE.md, data/style-signature.json, and data/implementation-plan.json before editing. "
         "Work only on this stage's responsibilities, while preserving and improving earlier completed work. "
         "Do not output explanations. Implement the files.\n"
     )
