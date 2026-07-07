@@ -73,9 +73,7 @@ function vercelApi(pathname: string) {
   return url;
 }
 
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
+function sleep(ms: number) { return new Promise((resolve) => setTimeout(resolve, ms)); }
 
 async function vercelJson(url: URL, init: RequestInit, token: string) {
   const response = await fetch(url, { ...init, headers: { ...vercelHeaders(token), ...(init.headers || {}) } });
@@ -95,11 +93,16 @@ async function waitForReady(id: string, token: string) {
 }
 
 async function assignAlias(id: string, alias: string, token: string) {
-  const data = await vercelJson(vercelApi(`/v2/deployments/${encodeURIComponent(id)}/aliases`), {
+  const response = await fetch(vercelApi(`/v2/deployments/${encodeURIComponent(id)}/aliases`), {
     method: 'POST',
+    headers: vercelHeaders(token),
     body: JSON.stringify({ alias }),
-  }, token);
-  return data.alias || alias;
+  });
+  const data = await response.json().catch(() => ({}));
+  if (response.ok) return data.alias || alias;
+  const message = data.error?.message || JSON.stringify(data);
+  if (message.toLowerCase().includes('already associated with this deployment')) return alias;
+  throw new Error(message.slice(0, 1200));
 }
 
 export async function publishToVercel(input: PublishInput) {
