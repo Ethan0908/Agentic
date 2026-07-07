@@ -1,4 +1,4 @@
-# Website Builder Prompt
+# Premium Website Builder Prompt
 
 You are working inside a generated Next.js project folder. Your job is to create a unique, production-quality website for the supplied business.
 
@@ -8,8 +8,10 @@ This is not a template-filling task. The existing project is only a scaffold so 
 
 Use the business data supplied in the prompt and in `data/business.json` as factual source material.
 
-You may also inspect:
+Also inspect:
 
+- `AGENTS.md`
+- `DESIGN_STUDIO_BRIEF.md`
 - `data/generation-mode.json`
 - `data/site-plan.json`
 - `data/design.json`
@@ -32,6 +34,19 @@ The final site should:
 - be excellent on mobile
 - build successfully with `npm run build`
 - remain deployable as a static Next.js/Vercel site
+
+## Mandatory generation process
+
+Before editing files, silently complete this process:
+
+1. Read the business JSON and site plan.
+2. Decide the visitor's likely intent: call, book, request a quote, visit location, or review services.
+3. Choose one named design concept. Example: `quiet clinical editorial`, `neighbourhood field guide`, `gallery-led luxury reservation page`, `technical proof dossier`, or another concept that fits the business.
+4. Select a visual rhythm that is not just a hero plus equal-width cards. Use asymmetry, editorial blocks, sticky CTA, split panels, bento panels, timeline, location panel, service matrix, proof rail, or another pattern when appropriate.
+5. Implement the site in `app/page.tsx` and `app/globals.css`.
+6. Self-review the result against the quality checklist below and revise weak parts before finishing.
+
+Do not print the plan. Implement the site.
 
 ## What you are allowed to change
 
@@ -82,6 +97,31 @@ For each site, decide:
 
 The site can be one page, but it should not feel like a generic landing-page checklist. Use only sections that make sense for the business.
 
+## Design quality bar
+
+The page should look like a careful agency landing page, not like an AI default.
+
+Use:
+
+- CSS custom properties for the concept's colour, border, radius, shadow, and spacing system
+- `clamp()` for responsive type and spacing
+- one strong first viewport with obvious CTA hierarchy
+- varied section composition instead of repeating identical cards
+- purposeful negative space
+- custom service/proof modules that fit the business type
+- a mobile layout that changes structure, not merely shrinks
+- real contact paths from available data
+- content-specific icons or text marks only if they are simple CSS/HTML, not external assets
+
+Avoid:
+
+- generic beige SaaS gradients unless the business truly calls for that tone
+- identical rounded cards for every section
+- huge vague paragraphs
+- fake dashboard/mockup blocks that have nothing to do with the business
+- CTAs that point nowhere when phone, email, or website data exists
+- visual clutter above the fold
+
 ## Copy standards
 
 Use concise, specific copy. Prefer direct sentences over marketing filler.
@@ -108,6 +148,7 @@ If `photos` or `heroImage` are provided:
 - crop with care
 - avoid stretching or using tiny logos as full hero photos
 - use weaker images smaller if needed
+- do not expose private API keys in image URLs or query strings
 
 If no real photos are provided:
 
@@ -129,6 +170,22 @@ The final site should have:
 - no crowded hero
 - no tiny unreadable text
 - no dead links unless no contact method exists
+
+## Final self-review before stopping
+
+Before finishing, check the generated files for:
+
+- `AGENTIC_REPLACE_ME`
+- placeholder copy
+- invented claims
+- generic AI phrases
+- broken or empty CTA links
+- image URLs with leaked API keys or irrelevant stock domains
+- TypeScript errors from unsafe JSON assumptions
+- CSS that works only on desktop
+- sections that could be copied unchanged into any other business
+
+Fix any issue you find.
 
 ## Build requirement
 
