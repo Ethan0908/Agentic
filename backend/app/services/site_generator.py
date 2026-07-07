@@ -13,22 +13,21 @@ from typing import Any, Mapping
 try:
     from .agentic_site_builder import build_site_plan, write_site_plan
     from .env_loader import load_local_env
-    from .premium_seed import write_premium_seed_site
     from .scaffold_writer import assert_replaced, reset_dir, write_minimal_project
 except ImportError:
     from agentic_site_builder import build_site_plan, write_site_plan
     from env_loader import load_local_env
-    from premium_seed import write_premium_seed_site
     from scaffold_writer import assert_replaced, reset_dir, write_minimal_project
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 PROMPT_FILE = REPO_ROOT / "backend" / "app" / "prompts" / "website_generation_prompt.md"
 PLAYBOOK_FILE = REPO_ROOT / "backend" / "app" / "prompts" / "premium_website_playbook.md"
 REDESIGN_CONTRACT_FILE = REPO_ROOT / "backend" / "app" / "prompts" / "full_site_redesign_contract.md"
+CLASSHOUR_CONTRACT_FILE = REPO_ROOT / "backend" / "app" / "prompts" / "classhour_level_single_page_contract.md"
 SKILLS_DIR = REPO_ROOT / "backend" / "app" / "skills"
 DEFAULT_OUTPUT_DIR = REPO_ROOT / "generated_sites"
 DEFAULT_CODEX_REASONING_EFFORT = "high"
-CODEX_STAGE_SEQUENCE = ("plan", "full-site-redesign", "visual-director", "polish")
+CODEX_STAGE_SEQUENCE = ("plan", "complete-single-page-build", "visual-director", "polish")
 
 
 @dataclass(frozen=True)
@@ -178,22 +177,55 @@ def install_codex_skills(target: Path) -> None:
     _write_text(dest / "README.md", "# Codex Skills\n\nFollow these persistent design skills before editing generated-site UI code.\n")
 
 
+def write_blank_canvas(target: Path) -> None:
+    _write_text(target / "app" / "page.tsx", """import business from '../data/business.json';
+
+export default function Home() {
+  void business;
+  return null;
+}
+""")
+    _write_text(target / "app" / "globals.css", """:root {
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+""")
+    _write_text(target / "BLANK_CANVAS.md", """# Blank Canvas
+
+This generated site intentionally starts blank. Codex must create the complete single-page website from `data/business.json`, `data/site-plan.json`, `DESIGN_SPEC.md`, and the generation contracts. Do not treat this file as a design baseline.
+""")
+
+
 def write_design_briefs(target: Path, business: Mapping[str, Any]) -> None:
     install_codex_skills(target)
     redesign_contract = _optional_file(REDESIGN_CONTRACT_FILE)
+    classhour_contract = _optional_file(CLASSHOUR_CONTRACT_FILE)
     if redesign_contract:
         _write_text(target / "FULL_SITE_REDESIGN_CONTRACT.md", redesign_contract)
+    if classhour_contract:
+        _write_text(target / "CLASSHOUR_LEVEL_SINGLE_PAGE_CONTRACT.md", classhour_contract)
     _write_text(target / "AGENTS.md", """# Generated Site Instructions
 
-Read `.codex/skills/design-taste-frontend/SKILL.md`, `.codex/skills/gpt-taste/SKILL.md`, `FULL_SITE_REDESIGN_CONTRACT.md`, `DESIGN_STUDIO_BRIEF.md`, and `LUXURY_BASELINE.md` before editing UI code.
+Read `.codex/skills/design-taste-frontend/SKILL.md`, `.codex/skills/gpt-taste/SKILL.md`, `FULL_SITE_REDESIGN_CONTRACT.md`, `CLASSHOUR_LEVEL_SINGLE_PAGE_CONTRACT.md`, `DESIGN_STUDIO_BRIEF.md`, and `BLANK_CANVAS.md` before editing UI code.
 
 ## Important
 
-The baseline is only a fallback/reference. Codex is allowed and expected to rewrite the entire frontend when the baseline looks scaffold-like or not premium enough.
+The generated site starts as a blank canvas. Codex owns the entire frontend implementation. Do not preserve the starter `app/page.tsx` or `app/globals.css`.
 
 Codex may edit `app/page.tsx`, `app/globals.css`, `app/layout.tsx`, add components, and update `package.json` if a dependency is genuinely needed and the final project remains buildable.
 
-Use factual JSON from `data/`. Use real business photos/logo/brand colours when supplied. Do not invent claims. The finished site must look like a custom premium studio build, not a generic local-business scaffold.
+Use factual JSON from `data/`. Use real business photos/logo/brand colours when supplied. Do not invent claims. The finished site must look like a complete premium editorial single-page website, not a generic local-business shell.
+
+The site fails if it has fewer than 8 meaningful sections, uses default fonts, lacks real anchor navigation, lacks a final CTA/footer, or looks like text placed into a scaffold.
 """)
     _write_text(target / "DESIGN_STUDIO_BRIEF.md", f"""# Design Studio Brief
 
@@ -204,7 +236,7 @@ Photos supplied: {'yes' if business.get('photos') else 'no'}
 Logo supplied: {'yes' if business.get('logo') else 'no'}
 Stock assets allowed: {'yes' if business.get('allowStockAssets') else 'no'}
 
-The goal is a custom local-business website that looks intentionally designed, not a generic scaffold. Plan first, then perform a full-site redesign. Do not merely fill the baseline with text.
+The goal is a complete ClassHour-level editorial single-page website. Plan first, then build the full page from a blank canvas. Do not merely fill a template with text.
 """)
 
 
@@ -219,7 +251,7 @@ def prepare_site_scaffold(raw_business: Mapping[str, Any], output_dir: Path | st
         raise SiteGenerationError(str(exc)) from exc
     write_minimal_project(target, business)
     write_site_plan(target, site_plan)
-    write_premium_seed_site(target, business, site_plan.as_dict())
+    write_blank_canvas(target)
     write_design_briefs(target, business)
     design_system = _string(site_plan.design.get("id"), "agent-built")
     return GeneratedSite(slug=slug, path=target, business_name=business["name"], design_system=design_system)
@@ -252,15 +284,17 @@ def _business_and_plan_context(raw_business: Mapping[str, Any]) -> tuple[dict[st
 def build_codex_plan_instruction(raw_business: Mapping[str, Any]) -> str:
     _, _, context = _business_and_plan_context(raw_business)
     redesign_contract = _optional_file(REDESIGN_CONTRACT_FILE)
+    classhour_contract = _optional_file(CLASSHOUR_CONTRACT_FILE)
     return (
         "You are in Plan Mode for a generated Next.js business website. Do not edit app/page.tsx or app/globals.css yet.\n\n"
-        "Read AGENTS.md, DESIGN_STUDIO_BRIEF.md, FULL_SITE_REDESIGN_CONTRACT.md, LUXURY_BASELINE.md, data/style-signature.json, .codex/skills/design-taste-frontend/SKILL.md, and .codex/skills/gpt-taste/SKILL.md.\n\n"
+        "Read AGENTS.md, DESIGN_STUDIO_BRIEF.md, FULL_SITE_REDESIGN_CONTRACT.md, CLASSHOUR_LEVEL_SINGLE_PAGE_CONTRACT.md, BLANK_CANVAS.md, .codex/skills/design-taste-frontend/SKILL.md, and .codex/skills/gpt-taste/SKILL.md.\n\n"
         f"## Full-site redesign contract\n{redesign_contract}\n\n"
+        f"## ClassHour-level single-page contract\n{classhour_contract}\n\n"
         f"{context}\n\n"
         "Create two planning files only:\n"
-        "1. DESIGN_SPEC.md with a detailed implementation spec covering the complete site concept, page structure, component order, interactions, CTA map, colour scheme, typography, asset/branding plan, responsive behaviour, and QA risks.\n"
-        "2. data/implementation-plan.json with keys: designRead, dials, colourScheme, typography, assetPlan, sections, components, interactions, ctaMap, mobilePlan, stagePlan, qaChecklist.\n\n"
-        "The plan must describe a full-site redesign, not a scaffold fill-in. It must explicitly say what baseline/scaffold elements should be deleted or replaced to make the site look premium.\n"
+        "1. DESIGN_SPEC.md with a detailed implementation spec covering the complete site concept, page structure, all sections, component order, interactions, CTA map, colour scheme, custom font pairing, asset/branding plan, responsive behaviour, and QA risks.\n"
+        "2. data/implementation-plan.json with keys: designRead, dials, colourScheme, typography, customFonts, assetPlan, sections, components, interactions, ctaMap, mobilePlan, stagePlan, qaChecklist.\n\n"
+        "The plan must describe a complete ClassHour-level single-page website, not a scaffold fill-in. It must include at least 8 meaningful sections, a custom font strategy, and a final CTA/footer.\n"
     )
 
 
@@ -270,27 +304,29 @@ def build_codex_stage_instruction(raw_business: Mapping[str, Any], stage: str) -
     prompt = PROMPT_FILE.read_text(encoding="utf-8").strip()
     playbook = _optional_file(PLAYBOOK_FILE)
     redesign_contract = _optional_file(REDESIGN_CONTRACT_FILE)
+    classhour_contract = _optional_file(CLASSHOUR_CONTRACT_FILE)
     _, _, context = _business_and_plan_context(raw_business)
     stage_guidance = {
-        "full-site-redesign": "Perform the main full-site redesign now. You have authority to rewrite app/page.tsx, app/globals.css, app/layout.tsx, add components, and update package.json if needed. Delete baseline/scaffold structure that looks cheap. Build one coherent premium website from the plan, not a filled template.",
-        "visual-director": "Act as a senior visual director reviewing the entire site. Rewrite anything that still looks 5/10: scaffold-like text blocks, weak first viewport, repeated cards, cramped spacing, cheap gradients, generic headings, low-contrast CTAs, and sections that could belong to any business.",
-        "polish": "Perform final production cleanup across the whole site. Improve mobile, spacing, contrast, accessibility, links, and build safety. Remove dead code and run npm run build if dependencies are installed.",
+        "complete-single-page-build": "Build the complete website now from the blank canvas. Rewrite app/page.tsx, app/globals.css, app/layout.tsx if useful, and add components if useful. The output must be a complete premium editorial single-page site with custom fonts, anchor navigation, at least 8 meaningful sections, useful interaction, final CTA, footer, and responsive CSS. Do not create a shell or placeholder structure.",
+        "visual-director": "Act as a senior visual director reviewing the entire site. Rewrite anything that still looks like a shell: weak first viewport, text-only blocks, repeated cards, cramped spacing, default fonts, generic headings, low-contrast CTAs, no footer, no final CTA, or sections that could belong to any business.",
+        "polish": "Perform final production cleanup across the whole site. Improve mobile, spacing, contrast, accessibility, links, custom font usage, section completeness, and build safety. Remove dead code and run npm run build if dependencies are installed.",
     }[stage]
     return (
         f"{prompt}\n\n"
         f"## Full-site redesign contract\n{redesign_contract}\n\n"
+        f"## ClassHour-level single-page contract\n{classhour_contract}\n\n"
         f"## Premium website playbook\n{playbook}\n\n"
         f"## Persistent frontend skills\n{_skill_text('design-taste-frontend')}\n\n{_skill_text('gpt-taste')}\n\n"
         f"{context}\n\n"
         f"## Current stage: {stage}\n{stage_guidance}\n\n"
-        "You must read DESIGN_SPEC.md, FULL_SITE_REDESIGN_CONTRACT.md, data/style-signature.json, and data/implementation-plan.json before editing. "
-        "You are not required to preserve baseline structure. Preserve only the factual business data and any genuinely strong design choices. "
+        "You must read DESIGN_SPEC.md, FULL_SITE_REDESIGN_CONTRACT.md, CLASSHOUR_LEVEL_SINGLE_PAGE_CONTRACT.md, and data/implementation-plan.json before editing. "
+        "You are not required to preserve any starter frontend code. Preserve only factual business data, real contact paths, and real supplied assets. "
         "Do not output explanations. Implement the files.\n"
     )
 
 
 def build_codex_instruction(raw_business: Mapping[str, Any]) -> str:
-    return build_codex_stage_instruction(raw_business, "full-site-redesign")
+    return build_codex_stage_instruction(raw_business, "complete-single-page-build")
 
 
 def _codex_command(default_command: str = "codex") -> list[str]:
@@ -331,7 +367,7 @@ def _codex_exec_args() -> list[str]:
     return ["exec", "--sandbox", sandbox, *_codex_config_args()]
 
 
-def run_codex_refinement(site_path: Path, instruction: str, codex_command: str = "codex", timeout_seconds: int = 3600) -> None:
+def run_codex_refinement(site_path: Path, instruction: str, codex_command: str = "codex", timeout_seconds: int = 5400) -> None:
     if not site_path.exists():
         raise SiteGenerationError(f"Cannot run in missing site path: {site_path}")
     command = [*_codex_command(codex_command), *_codex_exec_args(), instruction]
@@ -348,12 +384,51 @@ def assert_plan_created(site_path: Path) -> None:
         raise SiteGenerationError("Codex plan stage did not create required file(s): " + ", ".join(missing))
 
 
+def _read_generated_code(site_path: Path) -> str:
+    parts: list[str] = []
+    for folder in (site_path / "app", site_path / "components"):
+        if folder.exists():
+            for path in sorted(folder.rglob("*")):
+                if path.suffix in {".tsx", ".ts", ".css"}:
+                    parts.append(path.read_text(encoding="utf-8", errors="ignore"))
+    return "\n".join(parts)
+
+
+def assert_complete_single_page_site(site_path: Path) -> None:
+    code = _read_generated_code(site_path)
+    page = (site_path / "app" / "page.tsx").read_text(encoding="utf-8", errors="ignore") if (site_path / "app" / "page.tsx").exists() else ""
+    css = (site_path / "app" / "globals.css").read_text(encoding="utf-8", errors="ignore") if (site_path / "app" / "globals.css").exists() else ""
+    failures: list[str] = []
+
+    if len(code.strip()) < 18000:
+        failures.append("generated frontend is too small to be a full-fledged premium single-page site")
+    if "next/font" not in code:
+        failures.append("missing custom font implementation through next/font")
+    if len(re.findall(r"<section\b|id=\"[a-zA-Z0-9_-]+\"", page)) < 8:
+        failures.append("fewer than eight meaningful sections/anchors found in app/page.tsx")
+    if "href=\"#" not in page and "href={'#" not in page and "href={`#" not in page:
+        failures.append("missing real anchor navigation")
+    if "footer" not in page.lower():
+        failures.append("missing footer")
+    if "@media" not in css:
+        failures.append("missing responsive media queries")
+    if "clamp(" not in css:
+        failures.append("missing clamp() responsive typography/spacing")
+    if "return null" in page or "void business" in page:
+        failures.append("blank canvas starter still present")
+    if "Arial, Helvetica" in css or "font-family: Arial" in css:
+        failures.append("default browser font stack still present")
+    if failures:
+        raise SiteGenerationError("Generated site failed ClassHour-level completion gate: " + "; ".join(failures))
+
+
 def run_codex_site_pipeline(site_path: Path, raw_business: Mapping[str, Any]) -> None:
     run_codex_refinement(site_path, build_codex_plan_instruction(raw_business))
     assert_plan_created(site_path)
     for stage in CODEX_STAGE_SEQUENCE[1:]:
         run_codex_refinement(site_path, build_codex_stage_instruction(raw_business, stage))
     assert_replaced(site_path)
+    assert_complete_single_page_site(site_path)
 
 
 def generate_site(raw_business: Mapping[str, Any], output_dir: Path | str = DEFAULT_OUTPUT_DIR, refine_with_codex: bool = True, refine_with_claude: bool = False) -> GeneratedSite:
