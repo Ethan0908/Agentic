@@ -1,4 +1,5 @@
 import { spawn } from 'child_process';
+import { promises as fs } from 'fs';
 import path from 'path';
 import { NextResponse } from 'next/server';
 import { readClients, updateClient } from '../../../lib/client-store';
@@ -9,6 +10,7 @@ type GenResult = { slug?: string; path?: string; refined_with_codex?: boolean };
 
 function repoRoot() { return path.resolve(process.cwd(), '..'); }
 function repoName(name: string) { return `site-${name}`.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 90) || 'site-generated'; }
+async function removeLocalSite(sitePath: string) { await fs.rm(sitePath, { recursive: true, force: true }).catch(() => undefined); }
 
 function toBusiness(client: ClientRecord) {
   return { name: client.name, business_type: client.businessType, city: client.city, service_area: client.serviceArea || client.city, website: client.website, email: client.email, phone: client.phone, notes: client.notes, photos: client.photos };
@@ -58,18 +60,21 @@ export async function POST(request: Request) {
 
   const results = [];
   for (const client of selected) {
+    let localPath = '';
     await updateClient(client.id, { status: 'generating', error: '', generatedSitePath: '' });
     try {
       const result = await runGenerator(toBusiness(client));
       if (!result.path) throw new Error('Generator did not return a site path.');
+      localPath = result.path;
       const publishInput = { sitePath: result.path, repoName: repoName(client.name), displayName: client.name };
       const generatedRepoUrl = await publishToGithub(publishInput);
       const vercelUrl = await publishToVercel(publishInput);
+      await removeLocalSite(result.path);
       const updated = await updateClient(client.id, { status: 'generated', error: '', generatedSitePath: '', generatedRepoUrl, vercelUrl } as any);
-      results.push({ id: client.id, ok: true, client: updated, result: { ...result, generatedRepoUrl, vercelUrl } });
+      results.push({ id: client.id, ok: true, client: updated, result: { slug: result.slug, refined_with_codex: result.refined_with_codex, generatedRepoUrl, vercelUrl } });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Site generation or publish failed.';
-      const updated = await updateClient(client.id, { status: 'error', error: message });
+      const updated = await updateClient(client.id, { status: 'error', error: message, generatedSitePath: localPath } as any);
       results.push({ id: client.id, ok: false, client: updated, error: message });
     }
   }
