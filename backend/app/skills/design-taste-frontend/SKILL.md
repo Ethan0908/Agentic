@@ -2,12 +2,26 @@
 name: design-taste-frontend
 source: https://github.com/Leonxlnx/taste-skill
 source_skill: design-taste-frontend
-description: Persistent anti-slop frontend design skill for generated local-business websites. Adapted for this generator's dependency-light Next.js static-site scaffold.
+description: Persistent anti-slop frontend design skill for generated local-business websites. Adapted for this generator's Next.js static-site scaffold.
 ---
 
 # Design Taste Frontend Skill
 
 Use this skill on every generated business website before writing React or CSS.
+
+## 0. Full-site authority
+
+Codex is not a template filler. Codex may rewrite the entire generated frontend when the current page looks scaffold-like or not premium enough.
+
+Allowed edits include:
+
+- `app/page.tsx`;
+- `app/globals.css`;
+- `app/layout.tsx`;
+- new files under `app/` or `components/`;
+- `package.json`, when a dependency is genuinely useful and the project remains buildable.
+
+The baseline is a fallback/reference, not a restriction. Preserve factual business data, not weak layout choices.
 
 ## 1. Read the room first
 
@@ -24,8 +38,8 @@ Do not default to AI-purple gradients, centred hero over dark mesh, three equal 
 
 Use these as design variables in the plan:
 
-- DESIGN_VARIANCE: 1 = perfectly conventional, 10 = experimental. Default 7.
-- MOTION_INTENSITY: 1 = static, 10 = cinematic. Default 3 for dependency-light static sites.
+- DESIGN_VARIANCE: 1 = perfectly conventional, 10 = experimental. Default 8 for generated premium sites.
+- MOTION_INTENSITY: 1 = static, 10 = cinematic. Default 4, but use 2 for trust-critical sites.
 - VISUAL_DENSITY: 1 = airy gallery, 10 = dense cockpit. Default 4.
 
 For trust-critical industries, reduce variance and motion. For restaurants, boutiques, studios, and luxury services, increase visual rhythm and photo use.
@@ -35,6 +49,7 @@ For trust-critical industries, reduce variance and motion. For restaurants, bout
 Write or follow `DESIGN_SPEC.md` before implementation. It must include:
 
 - design read;
+- single art direction for the whole site;
 - site sections in order;
 - component list;
 - CTA map;
@@ -42,6 +57,7 @@ Write or follow `DESIGN_SPEC.md` before implementation. It must include:
 - image/asset strategy;
 - optional interaction plan;
 - mobile behaviour;
+- baseline elements to delete or replace;
 - anti-generic checks.
 
 ## 4. Typography rules
@@ -51,6 +67,7 @@ Write or follow `DESIGN_SPEC.md` before implementation. It must include:
 - Prefer `clamp()` for display type and responsive spacing.
 - Body copy should be short, readable, and under control. Avoid large paragraphs.
 - Use one clear hierarchy: eyebrow or location line, H1, supporting line, CTA row, trust/contact note.
+- If the page feels like scaffold text, rewrite the section structure and typography, not just the copy.
 
 ## 5. Layout rules
 
@@ -60,18 +77,19 @@ Write or follow `DESIGN_SPEC.md` before implementation. It must include:
 - Mix at least two section rhythms: e.g. service matrix plus process timeline, proof rail plus location panel, photo ribbon plus CTA drawer.
 - The mobile layout must be redesigned, not just squeezed.
 - Use `overflow-x: hidden` on the page shell to prevent accidental horizontal scrolling.
+- If the current page feels like a starter template, delete the structure and rebuild it around a stronger concept.
 
-## 6. Component-by-component build discipline
+## 6. Full-site build discipline
 
-Build in passes:
+Build in passes, but the main implementation pass may edit the whole site:
 
 1. foundation: data helpers, CTA helpers, shell, design tokens;
-2. header and hero;
-3. proof/services/process/location/contact sections;
-4. optional interactions that fit the business;
+2. full-site composition: header, hero, sections, contact, mobile CTA;
+3. useful interactions that fit the business;
+4. visual-director review;
 5. polish and QA.
 
-Each pass should improve the previous one instead of replacing it with a generic template.
+Each pass should improve the previous one instead of preserving weak scaffold choices.
 
 ## 7. Interactions
 
@@ -81,7 +99,8 @@ Only add interactions when they help. Examples:
 - FAQ accordion when FAQs exist or can be safely derived from factual service data;
 - modal/contact drawer when there are multiple contact paths;
 - sticky mobile CTA for phone-first or appointment-first sites;
-- hover states and image reveals using CSS transitions.
+- hover states and image reveals using CSS transitions;
+- subtle scroll/entrance motion if the package is installed or safely added.
 
 Do not add fake dashboards, arbitrary counters, fake testimonials, or meaningless animation.
 
@@ -103,4 +122,5 @@ Before finishing, verify:
 - mobile has a real layout;
 - sections do not all look identical;
 - photos are used intentionally;
-- the page could not be rebranded by changing only the business name.
+- the page could not be rebranded by changing only the business name;
+- the output looks like a finished custom site, not a scaffold with text.
