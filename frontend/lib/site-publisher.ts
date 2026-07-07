@@ -29,9 +29,7 @@ function ghHeaders(token: string) {
 
 async function githubRequest(url: string, init: RequestInit) {
   const response = await fetch(url, init);
-  if (!response.ok && response.status !== 404 && response.status !== 422) {
-    throw new Error(await response.text());
-  }
+  if (!response.ok && response.status !== 404 && response.status !== 422) throw new Error(await response.text());
   return response;
 }
 
@@ -68,10 +66,40 @@ function vercelHeaders(token: string) {
   return { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
 }
 
-function vercelUrl(pathname: string) {
+function vercelApi(pathname: string) {
   const url = new URL(`https://api.vercel.com${pathname}`);
   if (process.env.VERCEL_TEAM_ID) url.searchParams.set('teamId', process.env.VERCEL_TEAM_ID);
+  if (process.env.VERCEL_TEAM_SLUG) url.searchParams.set('slug', process.env.VERCEL_TEAM_SLUG);
   return url;
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function vercelJson(url: URL, init: RequestInit, token: string) {
+  const response = await fetch(url, { ...init, headers: { ...vercelHeaders(token), ...(init.headers || {}) } });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error?.message || JSON.stringify(data).slice(0, 1200));
+  return data;
+}
+
+async function waitForReady(id: string, token: string) {
+  for (let attempt = 0; attempt < 90; attempt += 1) {
+    const data = await vercelJson(vercelApi(`/v13/deployments/${encodeURIComponent(id)}`), { method: 'GET' }, token);
+    if (data.readyState === 'READY') return data;
+    if (data.readyState === 'ERROR' || data.readyState === 'CANCELED') throw new Error(data.errorMessage || `Vercel deployment ${data.readyState}.`);
+    await sleep(3000);
+  }
+  throw new Error('Timed out waiting for Vercel deployment to become READY.');
+}
+
+async function assignAlias(id: string, alias: string, token: string) {
+  const data = await vercelJson(vercelApi(`/v2/deployments/${encodeURIComponent(id)}/aliases`), {
+    method: 'POST',
+    body: JSON.stringify({ alias }),
+  }, token);
+  return data.alias || alias;
 }
 
 export async function publishToVercel(input: PublishInput) {
@@ -85,9 +113,8 @@ export async function publishToVercel(input: PublishInput) {
     payloadFiles.push({ file, data: content.toString('base64'), encoding: 'base64' });
   }
 
-  const response = await fetch(vercelUrl('/v13/deployments'), {
+  const deployment = await vercelJson(vercelApi('/v13/deployments'), {
     method: 'POST',
-    headers: vercelHeaders(token),
     body: JSON.stringify({
       name: input.repoName,
       project: input.repoName,
@@ -100,10 +127,12 @@ export async function publishToVercel(input: PublishInput) {
         outputDirectory: '.next',
       },
     }),
-  });
+  }, token);
 
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.error?.message || JSON.stringify(data).slice(0, 1200));
-  if (!data.url) throw new Error(`Vercel deployment did not return a URL: ${JSON.stringify(data).slice(0, 1200)}`);
-  return String(data.url).startsWith('http') ? String(data.url) : `https://${data.url}`;
+  const id = deployment.id || deployment.uid;
+  if (!id) throw new Error(`Vercel deployment did not return an id: ${JSON.stringify(deployment).slice(0, 1200)}`);
+  await waitForReady(id, token);
+  const alias = `${input.repoName}.vercel.app`;
+  const assigned = await assignAlias(id, alias, token);
+  return `https://${assigned}`;
 }
