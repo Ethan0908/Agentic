@@ -12,6 +12,11 @@ function repoRoot() { return path.resolve(process.cwd(), '..'); }
 function repoName(name: string) { return `site-${name}`.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 90) || 'site-generated'; }
 async function removeLocalSite(sitePath: string) { await fs.rm(sitePath, { recursive: true, force: true }).catch(() => undefined); }
 
+function codexReasoningEffort() {
+  const value = String(process.env.CODEX_REASONING_EFFORT || 'high').trim().toLowerCase().replace(/["']/g, '');
+  return ['low', 'medium', 'high'].includes(value) ? value : 'high';
+}
+
 function toBusiness(client: ClientRecord) {
   return { name: client.name, business_type: client.businessType, city: client.city, service_area: client.serviceArea || client.city, website: client.website, email: client.email, phone: client.phone, notes: client.notes, photos: client.photos };
 }
@@ -26,7 +31,7 @@ site = generate_site(business, refine_with_codex=True, refine_with_claude=False)
 print(json.dumps({"slug": site.slug, "path": str(site.path), "design_system": site.design_system, "refined_with_codex": site.refined_with_codex}))
 `;
   return new Promise((resolve, reject) => {
-    const env = { ...process.env, CODEX_REASONING_EFFORT: process.env.CODEX_REASONING_EFFORT || 'high' };
+    const env = { ...process.env, CODEX_REASONING_EFFORT: codexReasoningEffort() };
     const child = spawn('python3', ['-c', script], { cwd: repoRoot(), env, stdio: ['pipe', 'pipe', 'pipe'] });
     let stdout = '';
     let stderr = '';
