@@ -22,8 +22,10 @@ except ImportError:
 REPO_ROOT = Path(__file__).resolve().parents[3]
 PROMPT_FILE = REPO_ROOT / "backend" / "app" / "prompts" / "website_generation_prompt.md"
 PLAYBOOK_FILE = REPO_ROOT / "backend" / "app" / "prompts" / "premium_website_playbook.md"
+SKILLS_DIR = REPO_ROOT / "backend" / "app" / "skills"
 DEFAULT_OUTPUT_DIR = REPO_ROOT / "generated_sites"
 DEFAULT_CODEX_REASONING_EFFORT = "high"
+CODEX_STAGE_SEQUENCE = ("plan", "foundation", "hero", "content", "interactions", "polish")
 
 
 @dataclass(frozen=True)
@@ -123,6 +125,8 @@ def normalize_business_profile(raw: Mapping[str, Any]) -> dict[str, Any]:
     city = _string(raw.get("city") or raw.get("location"))
     service_area = _string(raw.get("service_area") or raw.get("serviceArea"), city)
     photos = _photo_list(raw, name)
+    logo = _public_image_url(raw.get("logo") or raw.get("logo_url") or raw.get("logoUrl"))
+    brand_colors = raw.get("brand_colors") or raw.get("brandColors") or raw.get("colors") or []
     return {
         "name": name,
         "slug": slugify(_string(raw.get("slug"), name)),
@@ -146,10 +150,52 @@ def normalize_business_profile(raw: Mapping[str, Any]) -> dict[str, Any]:
         "offer": _string(raw.get("offer")),
         "guarantee": _string(raw.get("guarantee")),
         "brandTone": _string(raw.get("brand_tone") or raw.get("brandTone")),
+        "logo": logo,
+        "brandColors": _list(brand_colors),
+        "allowStockAssets": bool(raw.get("allow_stock_assets") or raw.get("allowStockAssets")),
         "heroImage": photos[0] if photos else None,
         "photos": photos,
         "rawLead": dict(raw),
     }
+
+
+def _write_text(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+
+
+def install_codex_skills(target: Path) -> None:
+    dest = target / ".codex" / "skills"
+    dest.mkdir(parents=True, exist_ok=True)
+    if SKILLS_DIR.exists():
+        for skill_dir in sorted(item for item in SKILLS_DIR.iterdir() if item.is_dir()):
+            skill_file = skill_dir / "SKILL.md"
+            if skill_file.exists():
+                _write_text(dest / skill_dir.name / "SKILL.md", skill_file.read_text(encoding="utf-8"))
+    _write_text(dest / "README.md", "# Codex Skills\n\nFollow these persistent design skills before editing generated-site UI code.\n")
+
+
+def write_design_briefs(target: Path, business: Mapping[str, Any]) -> None:
+    install_codex_skills(target)
+    _write_text(target / "AGENTS.md", """# Generated Site Instructions
+
+Read `.codex/skills/design-taste-frontend/SKILL.md` and `.codex/skills/gpt-taste/SKILL.md` before editing UI code.
+
+Build in stages: plan, foundation, header/hero, content sections, interactions, polish.
+
+Use factual JSON from `data/`. Use real business photos/logo/brand colours when supplied. Do not invent claims. Do not leave scaffold markers. Keep the site static, dependency-light, responsive, and Vercel-friendly.
+""")
+    _write_text(target / "DESIGN_STUDIO_BRIEF.md", f"""# Design Studio Brief
+
+Business: {business.get('name')}
+Type: {business.get('businessType')}
+Market: {business.get('city') or business.get('serviceArea')}
+Photos supplied: {'yes' if business.get('photos') else 'no'}
+Logo supplied: {'yes' if business.get('logo') else 'no'}
+Stock assets allowed: {'yes' if business.get('allowStockAssets') else 'no'}
+
+The goal is a custom local-business website that looks intentionally designed, not a generic scaffold. Start with a plan/spec, then build component by component.
+""")
 
 
 def prepare_site_scaffold(raw_business: Mapping[str, Any], output_dir: Path | str = DEFAULT_OUTPUT_DIR, overwrite: bool = True) -> GeneratedSite:
@@ -163,6 +209,7 @@ def prepare_site_scaffold(raw_business: Mapping[str, Any], output_dir: Path | st
         raise SiteGenerationError(str(exc)) from exc
     write_minimal_project(target, business)
     write_site_plan(target, site_plan)
+    write_design_briefs(target, business)
     design_system = _string(site_plan.design.get("id"), "agent-built")
     return GeneratedSite(slug=slug, path=target, business_name=business["name"], design_system=design_system)
 
@@ -174,33 +221,63 @@ def _optional_file(path: Path) -> str:
     return path.read_text(encoding="utf-8").strip() if path.exists() else ""
 
 
-def build_codex_instruction(raw_business: Mapping[str, Any]) -> str:
+def _skill_text(name: str) -> str:
+    path = SKILLS_DIR / name / "SKILL.md"
+    return _optional_file(path)
+
+
+def _business_and_plan_context(raw_business: Mapping[str, Any]) -> tuple[dict[str, Any], dict[str, Any], str]:
+    business = normalize_business_profile(raw_business)
+    site_plan = build_site_plan(business).as_dict()
+    context = (
+        "## Factual business data JSON\n```json\n"
+        f"{json.dumps(business, ensure_ascii=False, indent=2)}\n````\n\n"
+        "## Generated design plan JSON\n```json\n"
+        f"{json.dumps(site_plan, ensure_ascii=False, indent=2)}\n```\n"
+    )
+    return business, site_plan, context
+
+
+def build_codex_plan_instruction(raw_business: Mapping[str, Any]) -> str:
+    _, _, context = _business_and_plan_context(raw_business)
+    return (
+        "You are in Plan Mode for a generated Next.js business website. Do not edit app/page.tsx or app/globals.css yet.\n\n"
+        "Read AGENTS.md, DESIGN_STUDIO_BRIEF.md, .codex/skills/design-taste-frontend/SKILL.md, and .codex/skills/gpt-taste/SKILL.md.\n\n"
+        f"{context}\n\n"
+        "Create two planning files only:\n"
+        "1. DESIGN_SPEC.md with a detailed implementation spec covering site structure, component order, interactions, CTA map, colour scheme, typography, asset/branding plan, responsive behaviour, and QA risks.\n"
+        "2. data/implementation-plan.json with keys: designRead, dials, colourScheme, typography, assetPlan, sections, components, interactions, ctaMap, mobilePlan, stagePlan, qaChecklist.\n\n"
+        "The plan must explain how the site will avoid generic template output. If an interaction such as FAQ accordion, contact drawer, service toggle, or pricing toggle does not fit the data, do not force it.\n"
+    )
+
+
+def build_codex_stage_instruction(raw_business: Mapping[str, Any], stage: str) -> str:
     if not PROMPT_FILE.exists():
         raise SiteGenerationError(f"Missing prompt file: {PROMPT_FILE}")
-    business = normalize_business_profile(raw_business)
-    site_plan = build_site_plan(business)
     prompt = PROMPT_FILE.read_text(encoding="utf-8").strip()
     playbook = _optional_file(PLAYBOOK_FILE)
+    _, _, context = _business_and_plan_context(raw_business)
+    stage_guidance = {
+        "foundation": "Set up the final component architecture, data helpers, CTA helpers, page shell, CSS variables, type scale, spacing scale, and base responsive rules. Keep the placeholder only if a later stage immediately replaces it.",
+        "hero": "Implement the header/navigation and hero section only. Make the first viewport distinctive, high-converting, and specific to the business. Use real logo/photos/brand colours when supplied.",
+        "content": "Implement the core body sections: proof or expectations, services, process, decision guide, photo ribbon, location/contact panel, FAQ, and final CTA as appropriate to the plan.",
+        "interactions": "Add only useful interactions: FAQ accordion, service/category toggle, contact drawer, sticky mobile CTA, hover states, or modal if the plan supports them. Keep it dependency-light and build-safe.",
+        "polish": "Perform final visual QA and build-safety cleanup. Remove scaffold residue, improve spacing, mobile layout, contrast, CTA links, and generic copy. Run npm run build if dependencies are installed.",
+    }[stage]
     return (
         f"{prompt}\n\n"
-        f"## Premium website skill/playbook\n{playbook}\n\n"
-        "## Factual business data JSON\n"
-        "```json\n"
-        f"{json.dumps(business, ensure_ascii=False, indent=2)}\n"
-        "```\n\n"
-        "## Generated design plan JSON\n"
-        "```json\n"
-        f"{json.dumps(site_plan.as_dict(), ensure_ascii=False, indent=2)}\n"
-        "```\n\n"
-        "You are inside a blank generated Next.js project folder. Build the real website from the business data and site plan. "
-        "Treat data/design.json, data/sections.json, data/site-plan.json, AGENTS.md, and DESIGN_STUDIO_BRIEF.md as context, not as a template you must preserve. "
-        "Before coding, choose one design concept and encode it in the page structure and CSS. "
-        "Do not output your explanation; implement the site. "
-        "Remove every occurrence of AGENTIC_REPLACE_ME from the project. "
-        "Rewrite app/page.tsx and app/globals.css as a custom, premium site. "
-        "Use supplied business photos when present; never add unrelated stock photos or unverifiable claims. "
-        "Finish with a buildable site that looks materially better than a generic AI landing page.\n"
+        f"## Premium website playbook\n{playbook}\n\n"
+        f"## Persistent frontend skills\n{_skill_text('design-taste-frontend')}\n\n{_skill_text('gpt-taste')}\n\n"
+        f"{context}\n\n"
+        f"## Current stage: {stage}\n{stage_guidance}\n\n"
+        "You must read DESIGN_SPEC.md and data/implementation-plan.json before editing. "
+        "Work only on this stage's responsibilities, while preserving and improving earlier completed work. "
+        "Do not output explanations. Implement the files.\n"
     )
+
+
+def build_codex_instruction(raw_business: Mapping[str, Any]) -> str:
+    return build_codex_stage_instruction(raw_business, "polish")
 
 
 def _codex_command(default_command: str = "codex") -> list[str]:
@@ -221,23 +298,15 @@ def _toml_string(value: str) -> str:
 
 
 def _codex_config_args() -> list[str]:
-    """Return Codex CLI config overrides.
-
-    The quality default is intentionally high. Set CODEX_REASONING_EFFORT=medium
-    only for cheap local tests, not for production site generation.
-    """
-
     args: list[str] = []
     model = os.environ.get("CODEX_MODEL", "").strip()
     if model:
         args.extend(["--model", model])
-
     reasoning_effort = os.environ.get("CODEX_REASONING_EFFORT", DEFAULT_CODEX_REASONING_EFFORT).strip().lower()
     if reasoning_effort:
         if reasoning_effort not in {"low", "medium", "high"}:
             raise SiteGenerationError("CODEX_REASONING_EFFORT must be one of: low, medium, high")
         args.extend(["-c", f"model_reasoning_effort={_toml_string(reasoning_effort)}"])
-
     extra_args = os.environ.get("CODEX_EXTRA_ARGS", "").strip()
     if extra_args:
         args.extend(shlex.split(extra_args))
@@ -256,16 +325,30 @@ def run_codex_refinement(site_path: Path, instruction: str, codex_command: str =
     subprocess.run(command, cwd=site_path, check=True, text=True, env=load_local_env(), timeout=timeout_seconds)
 
 
+def assert_plan_created(site_path: Path) -> None:
+    missing = [
+        str(path.relative_to(site_path))
+        for path in (site_path / "DESIGN_SPEC.md", site_path / "data" / "implementation-plan.json")
+        if not path.exists()
+    ]
+    if missing:
+        raise SiteGenerationError("Codex plan stage did not create required file(s): " + ", ".join(missing))
+
+
+def run_codex_site_pipeline(site_path: Path, raw_business: Mapping[str, Any]) -> None:
+    run_codex_refinement(site_path, build_codex_plan_instruction(raw_business))
+    assert_plan_created(site_path)
+    for stage in CODEX_STAGE_SEQUENCE[1:]:
+        run_codex_refinement(site_path, build_codex_stage_instruction(raw_business, stage))
+    assert_replaced(site_path)
+
+
 def generate_site(raw_business: Mapping[str, Any], output_dir: Path | str = DEFAULT_OUTPUT_DIR, refine_with_codex: bool = True, refine_with_claude: bool = False) -> GeneratedSite:
     generated = prepare_site_scaffold(raw_business, output_dir=output_dir)
     used_codex = False
     used_claude = False
     if refine_with_codex:
-        run_codex_refinement(generated.path, build_codex_instruction(raw_business))
-        try:
-            assert_replaced(generated.path)
-        except RuntimeError as exc:
-            raise SiteGenerationError(str(exc)) from exc
+        run_codex_site_pipeline(generated.path, raw_business)
         used_codex = True
     if refine_with_claude:
         from .agentic_site_builder import run_claude_refinement
