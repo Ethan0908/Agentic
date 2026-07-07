@@ -6,7 +6,7 @@ import { readClients, updateClient } from '../../../lib/client-store';
 import { publishToGithub, publishToVercel } from '../../../lib/site-publisher';
 
 type ClientRecord = Awaited<ReturnType<typeof readClients>>[number];
-type GenResult = { slug?: string; path?: string; refined_with_codex?: boolean };
+type GenResult = { slug?: string; path?: string; design_system?: string; refined_with_codex?: boolean };
 
 function repoRoot() { return path.resolve(process.cwd(), '..'); }
 function repoName(name: string) { return `site-${name}`.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 90) || 'site-generated'; }
@@ -22,11 +22,12 @@ import json
 import sys
 from backend.app.services.site_generator import generate_site
 business = json.load(sys.stdin)
-site = generate_site(business)
-print(json.dumps({"slug": site.slug, "path": str(site.path), "refined_with_codex": site.refined_with_codex}))
+site = generate_site(business, refine_with_codex=True, refine_with_claude=False)
+print(json.dumps({"slug": site.slug, "path": str(site.path), "design_system": site.design_system, "refined_with_codex": site.refined_with_codex}))
 `;
   return new Promise((resolve, reject) => {
-    const child = spawn('python3', ['-c', script], { cwd: repoRoot(), env: process.env, stdio: ['pipe', 'pipe', 'pipe'] });
+    const env = { ...process.env, CODEX_REASONING_EFFORT: process.env.CODEX_REASONING_EFFORT || 'high' };
+    const child = spawn('python3', ['-c', script], { cwd: repoRoot(), env, stdio: ['pipe', 'pipe', 'pipe'] });
     let stdout = '';
     let stderr = '';
     child.stdout.on('data', (chunk) => { stdout += chunk.toString(); });
@@ -67,18 +68,19 @@ export async function POST(request: Request) {
     try {
       const result = await runGenerator(toBusiness(client));
       if (!result.path) throw new Error('Generator did not return a site path.');
+      if (!result.refined_with_codex) throw new Error('Codex refinement did not run; refusing to publish scaffold-quality site.');
       localPath = result.path;
       const publishInput = { sitePath: result.path, repoName: repoName(client.name), displayName: client.name };
 
       generatedRepoUrl = await publishToGithub(publishInput);
-      await updateClient(client.id, { status: 'generating', error: 'GitHub published; Vercel pending.', generatedSitePath: '', generatedRepoUrl } as any);
+      await updateClient(client.id, { status: 'generating', error: 'High-quality Codex site published to GitHub; Vercel pending.', generatedSitePath: '', generatedRepoUrl } as any);
 
       vercelUrl = await publishToVercel(publishInput);
       await updateClient(client.id, { status: 'generating', error: 'GitHub and Vercel published; cleaning local workspace.', generatedSitePath: '', generatedRepoUrl, vercelUrl } as any);
 
       await removeLocalSite(result.path);
       const updated = await updateClient(client.id, { status: 'generated', error: '', generatedSitePath: '', generatedRepoUrl, vercelUrl } as any);
-      results.push({ id: client.id, ok: true, client: updated, result: { slug: result.slug, refined_with_codex: result.refined_with_codex, generatedRepoUrl, vercelUrl } });
+      results.push({ id: client.id, ok: true, client: updated, result: { slug: result.slug, design_system: result.design_system, refined_with_codex: result.refined_with_codex, generatedRepoUrl, vercelUrl } });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Site generation or publish failed.';
       const updated = await updateClient(client.id, { status: 'error', error: message, generatedSitePath: localPath, generatedRepoUrl, vercelUrl } as any);
