@@ -35,6 +35,7 @@ This folder is a temporary generated Next.js website. It exists so Codex can bui
 - Treat the starting files as a blank scaffold, not a finished template.
 - Rewrite `app/page.tsx` and `app/globals.css` into a complete, polished site.
 - Use the factual data in `data/business.json`, `data/design.json`, `data/sections.json`, and `data/site-plan.json`.
+- Use enriched factual fields such as `address`, `rating`, `reviewCount`, `contentAngles`, `visitorQuestions`, and `proofPoints` when present.
 - Build a specific art direction for this business; do not create the same rounded-card landing page every time.
 - Use supplied business photos only when present. Do not add stock photos or unrelated image URLs.
 - Do not invent awards, licences, review counts, years in business, guarantees, emergency availability, prices, staff names, or menu items.
@@ -44,6 +45,8 @@ This folder is a temporary generated Next.js website. It exists so Codex can bui
 ## Implementation expectations
 
 Use TypeScript-safe React and CSS that should pass `npm run build`. Prefer native CSS, CSS variables, responsive grids, `clamp()`, layered backgrounds, careful spacing, and content-specific components over generic sections.
+
+The final site must have at least 9 meaningful sections, real anchor navigation, custom `next/font` typography, a final CTA, and a real `<footer>` element.
 
 Before finishing, scan the site for placeholder text, dead CTAs, fake claims, generic AI copy, stretched images, repeated equal-height cards, and weak mobile spacing.
 """
@@ -55,12 +58,20 @@ def design_studio_brief(business: Mapping[str, Any]) -> str:
     city = str(business.get("city") or business.get("serviceArea") or "the local area")
     photos = business.get("photos") or []
     has_photos = "yes" if photos else "no"
+    address = str(business.get("address") or "not supplied")
+    rating = str(business.get("rating") or "not supplied")
+    review_count = str(business.get("reviewCount") or "not supplied")
+    content_angles = ", ".join(str(item) for item in business.get("contentAngles", []) or []) or "not supplied"
     return f"""# Design Studio Brief
 
 Business: {name}
 Type: {business_type}
 Market: {city}
+Address: {address}
+Rating: {rating}
+Review count: {review_count}
 Supplied business photos: {has_photos}
+Content angles: {content_angles}
 
 The goal is not to fill a template. The goal is to make a credible custom website that looks intentionally designed for this exact business.
 
@@ -74,6 +85,38 @@ A strong output should have:
 4. polished mobile layout;
 5. no generic AI marketing language;
 6. no visible scaffold residue.
+"""
+
+
+def generated_layout_tsx(name: str, description: str) -> str:
+    return f"""import type {{ Metadata }} from 'next';
+import type {{ ReactNode }} from 'react';
+import {{ DM_Serif_Display, Inter }} from 'next/font/google';
+import './globals.css';
+
+const display = DM_Serif_Display({{
+  subsets: ['latin'],
+  weight: '400',
+  variable: '--font-display',
+}});
+
+const body = Inter({{
+  subsets: ['latin'],
+  variable: '--font-body',
+}});
+
+export const metadata: Metadata = {{
+  title: {name!r},
+  description: {description!r},
+}};
+
+export default function RootLayout({{ children }}: {{ children: ReactNode }}) {{
+  return (
+    <html lang="en" className={{`${{display.variable}} ${{body.variable}}`}}>
+      <body>{{children}}</body>
+    </html>
+  );
+}}
 """
 
 
@@ -112,9 +155,9 @@ def write_minimal_project(target: Path, business: Mapping[str, Any]) -> None:
     })
     write_text(target / "next.config.ts", "import type { NextConfig } from 'next';\n\nconst nextConfig: NextConfig = {};\n\nexport default nextConfig;\n")
     write_text(target / "next-env.d.ts", "/// <reference types=\"next\" />\n/// <reference types=\"next/image-types/global\" />\n")
-    write_text(target / "app" / "layout.tsx", f"import type {{ Metadata }} from 'next';\nimport type {{ ReactNode }} from 'react';\nimport './globals.css';\n\nexport const metadata: Metadata = {{ title: {name!r}, description: {description!r} }};\n\nexport default function RootLayout({{ children }}: {{ children: ReactNode }}) {{\n  return <html lang=\"en\"><body>{{children}}</body></html>;\n}}\n")
+    write_text(target / "app" / "layout.tsx", generated_layout_tsx(name, description))
     write_text(target / "app" / "page.tsx", f"import business from '../data/business.json';\n\nexport default function Home() {{\n  return <main className=\"generation-placeholder\" data-generation-marker=\"{PLACEHOLDER_MARKER}\"><p>{{business.name}}</p><h1>{PLACEHOLDER_MARKER}</h1></main>;\n}}\n")
-    write_text(target / "app" / "globals.css", f":root {{ background: #0f1115; color: #f6f3ed; font-family: Arial, Helvetica, sans-serif; }}\n* {{ box-sizing: border-box; }}\nbody {{ margin: 0; min-height: 100vh; }}\n.generation-placeholder {{ min-height: 100vh; display: grid; place-items: center; padding: 48px; text-align: center; }}\n/* {PLACEHOLDER_MARKER} */\n")
+    write_text(target / "app" / "globals.css", f":root {{ background: #0f1115; color: #f6f3ed; font-family: var(--font-body); }}\n* {{ box-sizing: border-box; }}\nbody {{ margin: 0; min-height: 100vh; }}\n.generation-placeholder {{ min-height: 100vh; display: grid; place-items: center; padding: 48px; text-align: center; }}\n.generation-placeholder h1 {{ font-family: var(--font-display); }}\n/* {PLACEHOLDER_MARKER} */\n")
     write_json(target / "data" / "business.json", business)
     write_json(target / "data" / "generation-mode.json", {"mode": "blank-scaffold", "scaffoldIsFinal": False, "placeholderMarker": PLACEHOLDER_MARKER})
     write_text(target / "AGENTS.md", generated_site_agents_md())

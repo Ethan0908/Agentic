@@ -69,23 +69,26 @@ def compact_json(value: Mapping[str, Any], max_chars: int = 5000) -> str:
 
 def _search_blob(business: Mapping[str, Any]) -> str:
     parts: list[str] = []
-    for key in ("name", "businessType", "business_type", "category", "headline", "subheadline", "serviceArea", "service_area", "city"):
+    for key in (
+        "name", "businessType", "business_type", "category", "headline", "subheadline", "serviceArea",
+        "service_area", "city", "description", "address",
+    ):
         value = business.get(key)
         if value:
             parts.append(str(value))
-    for service in business.get("services", []) or []:
-        if isinstance(service, Mapping):
-            parts.append(str(service.get("title", "")))
-            parts.append(str(service.get("description", "")))
-        else:
-            parts.append(str(service))
+    for key in ("services", "contentAngles", "visitorQuestions", "proofPoints"):
+        for item in business.get(key, []) or []:
+            if isinstance(item, Mapping):
+                parts.extend(str(value) for value in item.values())
+            else:
+                parts.append(str(item))
     return " ".join(parts).lower()
 
 
 def select_design_system(business: Mapping[str, Any]) -> dict[str, Any]:
     """Select a design system using deterministic keywords.
 
-    This is intentionally cheap and predictable. Claude can later override the
+    This is intentionally cheap and predictable. Codex can later override the
     choice, but the baseline no longer looks identical for every business.
     """
 
@@ -108,9 +111,9 @@ def select_design_system(business: Mapping[str, Any]) -> dict[str, Any]:
 def detect_intent(business: Mapping[str, Any]) -> dict[str, bool]:
     blob = _search_blob(business)
     emergency_terms = ("emergency", "urgent", "24/7", "same day", "sewer", "leak", "water damage", "locksmith", "towing")
-    appointment_terms = ("clinic", "dental", "medical", "appointment", "therapy", "consultation", "spa", "salon")
+    appointment_terms = ("clinic", "dental", "dentist", "medical", "appointment", "therapy", "consultation", "spa", "salon", "barber")
     professional_terms = ("law", "legal", "finance", "accounting", "insurance", "mortgage", "advisory", "consulting")
-    image_led_terms = ("restaurant", "catering", "salon", "spa", "wedding", "photography", "interior", "design", "hotel", "fitness")
+    image_led_terms = ("restaurant", "bakery", "catering", "salon", "spa", "wedding", "photography", "interior", "design", "hotel", "fitness")
     photos = business.get("photos") or []
     return {
         "emergency": any(term in blob for term in emergency_terms),
@@ -118,8 +121,10 @@ def detect_intent(business: Mapping[str, Any]) -> dict[str, bool]:
         "professional": any(term in blob for term in professional_terms),
         "imageLed": bool(photos) or any(term in blob for term in image_led_terms),
         "hasPhotos": bool(photos),
-        "hasReviews": bool(business.get("reviews")),
+        "hasReviews": bool(business.get("reviews")) or bool(business.get("rating")) or bool(business.get("reviewCount")),
         "hasPhone": bool(business.get("phone")),
+        "hasWebsite": bool(business.get("website")),
+        "hasAddress": bool(business.get("address")),
     }
 
 
@@ -158,6 +163,20 @@ def build_image_strategy(business: Mapping[str, Any], design: Mapping[str, Any],
     }
 
 
+def _conversion_goal(intent: Mapping[str, bool]) -> str:
+    if intent["emergency"] and intent["hasPhone"]:
+        return "phone-first urgent contact"
+    if intent["appointment"] and intent["hasPhone"]:
+        return "call or book appointment"
+    if intent["hasWebsite"] and not intent["hasPhone"]:
+        return "official-website handoff"
+    if intent["hasAddress"]:
+        return "location and visit planning"
+    if intent["hasPhone"]:
+        return "phone-first inquiry"
+    return "request information"
+
+
 def build_section_plan(business: Mapping[str, Any], design: Mapping[str, Any]) -> dict[str, Any]:
     registry = load_json(SECTION_REGISTRY_FILE)
     intent = detect_intent(business)
@@ -192,8 +211,28 @@ def build_section_plan(business: Mapping[str, Any], design: Mapping[str, Any]) -
         "processVariant": process,
         "proofOrExpectation": "reviews" if intent["hasReviews"] else "expectations",
         "finalCtaVariant": final_cta,
+        "conversionGoal": _conversion_goal(intent),
+        "contentAngles": business.get("contentAngles", []),
+        "visitorQuestions": business.get("visitorQuestions", []),
+        "requiredSectionCount": 9,
         "imageStrategy": image_strategy,
-        "sectionOrder": ["hero", "proof", "services", "decision", "process", "proofOrExpectation", "faq", "finalCta"],
+        "sectionOrder": [
+            "navigation",
+            "hero",
+            "credibilityStrip",
+            "positioningThesis",
+            "serviceArchitecture",
+            "decisionGuide",
+            "processOrVisitFlow",
+            "proofOrExpectations",
+            "locationOrServiceArea",
+            "faqOrVisitorQuestions",
+            "finalCta",
+            "footer",
+        ],
+        "layoutRhythmRequirements": design.get("sectionRhythms", []),
+        "componentRecipes": design.get("componentRecipes", []),
+        "forbiddenPatterns": design.get("forbiddenPatterns", []),
         "intent": intent,
         "registryNotes": {
             "hero": registry["hero"].get(layout, registry["hero"]["split-panel"]),
@@ -210,15 +249,21 @@ def build_agent_brief(business: Mapping[str, Any], design: Mapping[str, Any], se
     budget = token_budget["default"]
     image_strategy = sections.get("imageStrategy", {})
     return {
-        "briefVersion": 2,
+        "briefVersion": 3,
         "goal": "Create a premium, high-converting local business website without fake claims or generic AI copy.",
         "businessSummary": compact_text(
             {
                 "name": business.get("name"),
                 "type": business.get("businessType"),
                 "area": business.get("serviceArea"),
+                "address": business.get("address"),
+                "rating": business.get("rating"),
+                "reviewCount": business.get("reviewCount"),
                 "cta": business.get("primaryCta"),
                 "services": business.get("services", [])[:6],
+                "contentAngles": business.get("contentAngles", [])[:6],
+                "visitorQuestions": business.get("visitorQuestions", [])[:5],
+                "proofPoints": business.get("proofPoints", [])[:6],
             },
             budget["briefMaxChars"],
         ),
@@ -228,6 +273,11 @@ def build_agent_brief(business: Mapping[str, Any], design: Mapping[str, Any], se
                 "label": design.get("label"),
                 "visualLanguage": design.get("visualLanguage"),
                 "layoutPattern": design.get("layoutPattern"),
+                "fontPairing": design.get("fontPairing"),
+                "heroPattern": design.get("heroPattern"),
+                "sectionRhythms": design.get("sectionRhythms"),
+                "componentRecipes": design.get("componentRecipes"),
+                "forbiddenPatterns": design.get("forbiddenPatterns"),
                 "imageStrategy": image_strategy,
             },
             budget["designPlanMaxChars"],
@@ -236,7 +286,10 @@ def build_agent_brief(business: Mapping[str, Any], design: Mapping[str, Any], se
         "hardRules": [
             "Do not invent awards, licences, review counts, guarantees, years in business, or emergency availability.",
             "Use supplied business photos when present; do not use unrelated stock images.",
+            "Use enriched contentAngles and visitorQuestions as editorial prompts, not fake factual claims.",
             "Prefer short specific copy over vague promotional copy.",
+            "Produce at least 9 meaningful sections plus a footer.",
+            "Use next/font/google and do not leave browser default font stacks as the visual identity.",
             "Preserve buildability and Vercel deployment assumptions.",
             "Fix mobile first: no horizontal overflow, readable text, obvious CTA.",
         ],
@@ -265,7 +318,26 @@ def build_claude_agent_prompt(site_plan: SitePlan, target_path: Path) -> str:
 
     budget = load_json(TOKEN_BUDGET_FILE)["default"]
     plan_json = compact_json(site_plan.as_dict(), max_chars=budget["agentPromptMaxChars"])
-    return f"""Improve this generated website using the project Claude agents.\n\nTarget folder: {target_path}\nCompact site plan JSON: {plan_json}\n\nWorkflow:\n1. Use @business-profiler to verify the brief, vertical, image availability, and safe claims.\n2. Use @conversion-strategist to check the section order, CTA hierarchy, and objection handling.\n3. Use @brand-director to refine the visual direction only if the selected design system is weak.\n4. Use @copy-polisher to remove generic copy and improve CTA clarity.\n5. Use @frontend-refiner to improve React/CSS only where it materially improves quality.\n6. Use @visual-qa to review mobile/desktop quality and list fixes.\n\nConstraints:\n- Keep changes minimal and high leverage.\n- Use supplied business photos when present; do not add unrelated stock photos.\n- Do not paste whole files into agent prompts unless necessary.\n- Do not invent claims.\n- Run the build if dependencies are installed.\n"""
+    return f"""Improve this generated website using the project Claude agents.
+
+Target folder: {target_path}
+Compact site plan JSON: {plan_json}
+
+Workflow:
+1. Use @business-profiler to verify the brief, vertical, image availability, and safe claims.
+2. Use @conversion-strategist to check the section order, CTA hierarchy, and objection handling.
+3. Use @brand-director to refine the visual direction only if the selected design system is weak.
+4. Use @copy-polisher to remove generic copy and improve CTA clarity.
+5. Use @frontend-refiner to improve React/CSS only where it materially improves quality.
+6. Use @visual-qa to review mobile/desktop quality and list fixes.
+
+Constraints:
+- Keep changes minimal and high leverage.
+- Use supplied business photos when present; do not add unrelated stock photos.
+- Do not paste whole files into agent prompts unless necessary.
+- Do not invent claims.
+- Run the build if dependencies are installed.
+"""
 
 
 def run_claude_refinement(site_plan: SitePlan, target_path: Path, claude_command: str = "claude") -> None:

@@ -3,7 +3,17 @@
     "label": "Premium Local Service",
     "bestFor": ["plumbing", "hvac", "electrician", "roofing", "cleaning", "repair", "contractor", "home service"],
     "layoutPattern": "split-panel",
-    "visualLanguage": "warm editorial, high trust, soft contrast, refined cards",
+    "visualLanguage": "warm editorial, high trust, practical, local, service-area aware",
+    "fontPairing": ["DM_Serif_Display", "Inter"],
+    "heroPattern": "large editorial promise with an operational contact card and service-area proof rail",
+    "sectionRhythms": ["split editorial hero", "utility proof strip", "service decision matrix", "sticky contact panel", "high-contrast final CTA"],
+    "componentRecipes": [
+      "problem-to-service matrix instead of generic service cards",
+      "phone-first CTA panel when a phone number exists",
+      "service-area or address module using only supplied facts",
+      "visitor-prep checklist based on contentAngles"
+    ],
+    "forbiddenPatterns": ["centred hero plus three cards", "fake emergency claims", "all sections as identical rounded cards"],
     "tokens": {
       "bg": "#f5f1eb",
       "ink": "#15110d",
@@ -19,6 +29,16 @@
     "bestFor": ["emergency", "sewer", "water damage", "locksmith", "towing", "restoration", "urgent"],
     "layoutPattern": "urgent-conversion",
     "visualLanguage": "direct, bold, high contrast, phone-first, low friction",
+    "fontPairing": ["Space_Grotesk", "Inter"],
+    "heroPattern": "urgent phone-first hero with service triage and clear availability caveats",
+    "sectionRhythms": ["high-contrast hero", "call rail", "triage checklist", "rapid process timeline", "final call band"],
+    "componentRecipes": [
+      "issue triage checklist with no invented response times",
+      "tap-to-call mobile action bar",
+      "what-to-have-ready before calling panel",
+      "service-area proof module"
+    ],
+    "forbiddenPatterns": ["luxury editorial slow pacing", "fake 24/7 claims", "fake same-day guarantees", "decorative cards with no action"],
     "tokens": {
       "bg": "#0f1115",
       "ink": "#f8f4ec",
@@ -31,9 +51,19 @@
   },
   "clinical-trust": {
     "label": "Clinical Trust",
-    "bestFor": ["medical", "dental", "clinic", "therapy", "health", "wellness", "doctor", "chiropractor"],
+    "bestFor": ["medical", "dental", "dentist", "clinic", "therapy", "health", "wellness", "doctor", "chiropractor"],
     "layoutPattern": "calm-authority",
     "visualLanguage": "bright, calm, precise, accessible, reassurance-led",
+    "fontPairing": ["DM_Serif_Display", "Inter"],
+    "heroPattern": "quiet clinical editorial hero with appointment/contact card and location proof",
+    "sectionRhythms": ["airy editorial hero", "compact credibility strip", "patient decision guide", "visit flow", "FAQ accordion", "calm final CTA"],
+    "componentRecipes": [
+      "appointment pathway module",
+      "patient questions panel using visitorQuestions",
+      "location and arrival card when address exists",
+      "trust strip using rating/reviewCount only when supplied"
+    ],
+    "forbiddenPatterns": ["medical claims not in data", "fake doctors or staff", "generic healthcare stock-photo shell", "all-white card stack"],
     "tokens": {
       "bg": "#eef7f5",
       "ink": "#10231f",
@@ -49,6 +79,16 @@
     "bestFor": ["law", "legal", "accounting", "finance", "insurance", "consulting", "real estate", "mortgage"],
     "layoutPattern": "authority-editorial",
     "visualLanguage": "serious, composed, editorial, credibility-first",
+    "fontPairing": ["Source_Sans_3", "Inter"],
+    "heroPattern": "authority editorial hero with consultative CTA and proof dossier",
+    "sectionRhythms": ["editorial hero", "credibility dossier", "service architecture", "decision guide", "consultation CTA"],
+    "componentRecipes": [
+      "consultation decision map",
+      "proof/expectations grid based only on factual data",
+      "process timeline for inquiry handling",
+      "final contact dossier"
+    ],
+    "forbiddenPatterns": ["fake case results", "fake licences", "overly playful SaaS gradients", "testimonial invention"],
     "tokens": {
       "bg": "#f4f2ee",
       "ink": "#111827",
@@ -61,9 +101,19 @@
   },
   "boutique-luxury": {
     "label": "Boutique Luxury",
-    "bestFor": ["spa", "salon", "interior", "design", "photography", "wedding", "hotel", "restaurant", "catering"],
+    "bestFor": ["spa", "salon", "interior", "design", "photography", "wedding", "hotel", "restaurant", "catering", "bakery", "barber"],
     "layoutPattern": "gallery-bento",
-    "visualLanguage": "spacious, tasteful, high-end, image-led, soft motion-ready",
+    "visualLanguage": "spacious, tasteful, high-end, image-led when real photos exist, restrained luxury",
+    "fontPairing": ["Cormorant_Garamond", "Inter"],
+    "heroPattern": "gallery-led or typography-led luxury hero with a restrained booking/visit path",
+    "sectionRhythms": ["immersive hero", "editorial belief section", "asymmetric bento", "visit/reservation guide", "soft final CTA"],
+    "componentRecipes": [
+      "image ribbon only when real photos exist",
+      "menu/service category module without inventing items or prices",
+      "neighbourhood visit panel",
+      "reservation/contact handoff"
+    ],
+    "forbiddenPatterns": ["fake menu items", "fake chef/stylist names", "unrelated stock photos", "bright SaaS gradients"],
     "tokens": {
       "bg": "#f7f1ea",
       "ink": "#241b16",
@@ -79,6 +129,16 @@
     "bestFor": ["saas", "software", "agency", "marketing", "startup", "technology", "ai", "app"],
     "layoutPattern": "saas-bento",
     "visualLanguage": "sharp, modern, high contrast, bento proof, product-led",
+    "fontPairing": ["Space_Grotesk", "Inter"],
+    "heroPattern": "product-led hero with proof bento and clear conversion route",
+    "sectionRhythms": ["high-contrast hero", "product bento", "workflow strip", "comparison panel", "final CTA"],
+    "componentRecipes": [
+      "workflow diagram using CSS only",
+      "problem-solution bento",
+      "proof module using supplied facts only",
+      "integration/contact handoff"
+    ],
+    "forbiddenPatterns": ["fake dashboards unrelated to the business", "generic AI startup copy", "fake metrics", "decorative gradients with no content"],
     "tokens": {
       "bg": "#080b12",
       "ink": "#f6f8fb",

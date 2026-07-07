@@ -21,6 +21,19 @@ Also inspect:
 
 Those files are seed context only. They are not a required layout, not a required section order, and not a required visual system.
 
+## Enriched business fields
+
+When present, use these fields to make the page more specific without inventing claims:
+
+- `address`
+- `rating`
+- `reviewCount`
+- `contentAngles`
+- `visitorQuestions`
+- `proofPoints`
+
+Treat `contentAngles` and `visitorQuestions` as design and copy prompts, not as factual claims. For example, they can shape a patient decision guide, a service-area checklist, a visit-planning panel, or a buyer-prep section.
+
 ## Main objective
 
 Build a custom site that feels made for this specific business, not copied from a vertical template.
@@ -54,6 +67,7 @@ You may change, rewrite, or replace:
 
 - `app/page.tsx`
 - `app/globals.css`
+- `app/layout.tsx`
 - any local CSS imported by the app
 - local components you create
 - how JSON data is read and rendered
@@ -97,6 +111,25 @@ For each site, decide:
 
 The site can be one page, but it should not feel like a generic landing-page checklist. Use only sections that make sense for the business.
 
+## Required page depth
+
+The page must feel complete when viewed as screenshots without context. It should normally include at least 9 meaningful sections plus a footer:
+
+1. navigation with anchors and CTA
+2. art-directed hero
+3. credibility or positioning strip
+4. business thesis or belief section
+5. service/program architecture
+6. visitor decision guide
+7. process, visit flow, or expectation section
+8. proof or factual listing section
+9. location/service-area or conversion section
+10. FAQ/visitor-questions section when useful
+11. final CTA
+12. footer
+
+Do not make these sections all look the same. At least four section rhythms should be visibly different.
+
 ## Design quality bar
 
 The page should look like a careful agency landing page, not like an AI default.
@@ -112,6 +145,7 @@ Use:
 - a mobile layout that changes structure, not merely shrinks
 - real contact paths from available data
 - content-specific icons or text marks only if they are simple CSS/HTML, not external assets
+- custom `next/font` typography from `app/layout.tsx` or the page implementation
 
 Avoid:
 
@@ -184,6 +218,9 @@ Before finishing, check the generated files for:
 - TypeScript errors from unsafe JSON assumptions
 - CSS that works only on desktop
 - sections that could be copied unchanged into any other business
+- fewer than 9 meaningful sections
+- no real `<footer>` element
+- weak or default typography
 
 Fix any issue you find.
 
