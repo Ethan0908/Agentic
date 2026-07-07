@@ -3,7 +3,7 @@
 Usage:
     python scripts/generate_site.py lead.json
     python scripts/generate_site.py lead.json --claude
-    python scripts/generate_site.py lead.json --codex
+    python scripts/generate_site.py lead.json --no-codex
 """
 
 from __future__ import annotations
@@ -24,7 +24,8 @@ def main() -> int:
     parser.add_argument("profile", type=Path, help="Path to a JSON business profile.")
     parser.add_argument("--output-dir", type=Path, default=REPO_ROOT / "generated_sites")
     parser.add_argument("--claude", action="store_true", help="Run optional Claude Code subagent refinement.")
-    parser.add_argument("--codex", action="store_true", help="Run optional Codex refinement.")
+    parser.add_argument("--codex", action="store_true", help="Compatibility flag. Codex refinement is already on by default.")
+    parser.add_argument("--no-codex", action="store_true", help="Disable Codex refinement for scaffold-only tests.")
     args = parser.parse_args()
 
     profile = json.loads(args.profile.read_text(encoding="utf-8"))
@@ -32,7 +33,7 @@ def main() -> int:
         profile,
         output_dir=args.output_dir,
         refine_with_claude=args.claude,
-        refine_with_codex=args.codex,
+        refine_with_codex=not args.no_codex,
     )
 
     print(json.dumps({
@@ -40,6 +41,8 @@ def main() -> int:
         "path": str(site.path),
         "businessName": site.business_name,
         "designSystem": site.design_system,
+        "refinedWithCodex": site.refined_with_codex,
+        "refinedWithClaude": site.refined_with_claude,
     }, indent=2))
     return 0
 
