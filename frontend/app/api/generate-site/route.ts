@@ -61,21 +61,28 @@ export async function POST(request: Request) {
   const results = [];
   for (const client of selected) {
     let localPath = '';
+    let generatedRepoUrl = '';
+    let vercelUrl = '';
     await updateClient(client.id, { status: 'generating', error: '', generatedSitePath: '' });
     try {
       const result = await runGenerator(toBusiness(client));
       if (!result.path) throw new Error('Generator did not return a site path.');
       localPath = result.path;
       const publishInput = { sitePath: result.path, repoName: repoName(client.name), displayName: client.name };
-      const generatedRepoUrl = await publishToGithub(publishInput);
-      const vercelUrl = await publishToVercel(publishInput);
+
+      generatedRepoUrl = await publishToGithub(publishInput);
+      await updateClient(client.id, { status: 'generating', error: 'GitHub published; Vercel pending.', generatedSitePath: '', generatedRepoUrl } as any);
+
+      vercelUrl = await publishToVercel(publishInput);
+      await updateClient(client.id, { status: 'generating', error: 'GitHub and Vercel published; cleaning local workspace.', generatedSitePath: '', generatedRepoUrl, vercelUrl } as any);
+
       await removeLocalSite(result.path);
       const updated = await updateClient(client.id, { status: 'generated', error: '', generatedSitePath: '', generatedRepoUrl, vercelUrl } as any);
       results.push({ id: client.id, ok: true, client: updated, result: { slug: result.slug, refined_with_codex: result.refined_with_codex, generatedRepoUrl, vercelUrl } });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Site generation or publish failed.';
-      const updated = await updateClient(client.id, { status: 'error', error: message, generatedSitePath: localPath } as any);
-      results.push({ id: client.id, ok: false, client: updated, error: message });
+      const updated = await updateClient(client.id, { status: 'error', error: message, generatedSitePath: localPath, generatedRepoUrl, vercelUrl } as any);
+      results.push({ id: client.id, ok: false, client: updated, error: message, generatedRepoUrl, vercelUrl });
     }
   }
 
