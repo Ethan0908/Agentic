@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
 from dataclasses import dataclass
@@ -10,9 +11,11 @@ from pathlib import Path
 from typing import Any, Mapping
 
 try:
+    from .agentic_site_builder import build_site_plan, write_site_plan
     from .env_loader import load_local_env
     from .scaffold_writer import assert_replaced, reset_dir, write_minimal_project
 except ImportError:
+    from agentic_site_builder import build_site_plan, write_site_plan
     from env_loader import load_local_env
     from scaffold_writer import assert_replaced, reset_dir, write_minimal_project
 
@@ -20,6 +23,7 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 PROMPT_FILE = REPO_ROOT / "backend" / "app" / "prompts" / "website_generation_prompt.md"
 PLAYBOOK_FILE = REPO_ROOT / "backend" / "app" / "prompts" / "premium_website_playbook.md"
 DEFAULT_OUTPUT_DIR = REPO_ROOT / "generated_sites"
+DEFAULT_CODEX_REASONING_EFFORT = "high"
 
 
 @dataclass(frozen=True)
@@ -100,6 +104,19 @@ def _photo_list(raw: Mapping[str, Any], business_name: str) -> list[dict[str, st
     return photos
 
 
+def _default_primary_cta(raw: Mapping[str, Any]) -> str:
+    provided = _string(raw.get("primary_cta") or raw.get("primaryCta"))
+    if provided:
+        return provided
+    if _string(raw.get("phone") or raw.get("phone_number")):
+        return "Call now"
+    if _string(raw.get("website") or raw.get("url")):
+        return "Visit website"
+    if _string(raw.get("email")):
+        return "Email the team"
+    return "Request information"
+
+
 def normalize_business_profile(raw: Mapping[str, Any]) -> dict[str, Any]:
     name = _string(raw.get("name") or raw.get("business_name"), "Local Business")
     business_type = _string(raw.get("business_type") or raw.get("businessType") or raw.get("category"), "local business")
@@ -116,7 +133,7 @@ def normalize_business_profile(raw: Mapping[str, Any]) -> dict[str, Any]:
         "email": _string(raw.get("email")),
         "website": _string(raw.get("website") or raw.get("url")),
         "address": _string(raw.get("address")),
-        "primaryCta": _string(raw.get("primary_cta") or raw.get("primaryCta")),
+        "primaryCta": _default_primary_cta(raw),
         "secondaryCta": _string(raw.get("secondary_cta") or raw.get("secondaryCta")),
         "headline": _string(raw.get("headline")),
         "subheadline": _string(raw.get("subheadline")),
@@ -137,6 +154,7 @@ def normalize_business_profile(raw: Mapping[str, Any]) -> dict[str, Any]:
 
 def prepare_site_scaffold(raw_business: Mapping[str, Any], output_dir: Path | str = DEFAULT_OUTPUT_DIR, overwrite: bool = True) -> GeneratedSite:
     business = normalize_business_profile(raw_business)
+    site_plan = build_site_plan(business)
     slug = slugify(business["slug"])
     target = Path(output_dir) / slug
     try:
@@ -144,7 +162,9 @@ def prepare_site_scaffold(raw_business: Mapping[str, Any], output_dir: Path | st
     except FileExistsError as exc:
         raise SiteGenerationError(str(exc)) from exc
     write_minimal_project(target, business)
-    return GeneratedSite(slug=slug, path=target, business_name=business["name"])
+    write_site_plan(target, site_plan)
+    design_system = _string(site_plan.design.get("id"), "agent-built")
+    return GeneratedSite(slug=slug, path=target, business_name=business["name"], design_system=design_system)
 
 
 render_site_from_template = prepare_site_scaffold
@@ -158,6 +178,7 @@ def build_codex_instruction(raw_business: Mapping[str, Any]) -> str:
     if not PROMPT_FILE.exists():
         raise SiteGenerationError(f"Missing prompt file: {PROMPT_FILE}")
     business = normalize_business_profile(raw_business)
+    site_plan = build_site_plan(business)
     prompt = PROMPT_FILE.read_text(encoding="utf-8").strip()
     playbook = _optional_file(PLAYBOOK_FILE)
     return (
@@ -167,20 +188,25 @@ def build_codex_instruction(raw_business: Mapping[str, Any]) -> str:
         "```json\n"
         f"{json.dumps(business, ensure_ascii=False, indent=2)}\n"
         "```\n\n"
+        "## Generated design plan JSON\n"
+        "```json\n"
+        f"{json.dumps(site_plan.as_dict(), ensure_ascii=False, indent=2)}\n"
+        "```\n\n"
+        "You are inside a blank generated Next.js project folder. Build the real website from the business data and site plan. "
+        "Treat data/design.json, data/sections.json, data/site-plan.json, AGENTS.md, and DESIGN_STUDIO_BRIEF.md as context, not as a template you must preserve. "
         "Before coding, choose one design concept and encode it in the page structure and CSS. "
         "Do not output your explanation; implement the site. "
-        "You are inside a blank generated Next.js project folder. Build the real website from the business data. "
         "Remove every occurrence of AGENTIC_REPLACE_ME from the project. "
-        "Rewrite app/page.tsx and app/globals.css as a custom site. "
+        "Rewrite app/page.tsx and app/globals.css as a custom, premium site. "
         "Use supplied business photos when present; never add unrelated stock photos or unverifiable claims. "
-        "Finish with a buildable site.\n"
+        "Finish with a buildable site that looks materially better than a generic AI landing page.\n"
     )
 
 
 def _codex_command(default_command: str = "codex") -> list[str]:
     env_command = os.environ.get("CODEX_COMMAND", "").strip()
     if env_command:
-        return env_command.split()
+        return shlex.split(env_command)
     codex_path = shutil.which(default_command)
     if codex_path:
         return [codex_path]
@@ -190,12 +216,40 @@ def _codex_command(default_command: str = "codex") -> list[str]:
     raise SiteGenerationError("Codex CLI was not found. Rebuild the frontend container or set CODEX_COMMAND.")
 
 
+def _toml_string(value: str) -> str:
+    return json.dumps(value)
+
+
+def _codex_config_args() -> list[str]:
+    """Return Codex CLI config overrides.
+
+    The quality default is intentionally high. Set CODEX_REASONING_EFFORT=medium
+    only for cheap local tests, not for production site generation.
+    """
+
+    args: list[str] = []
+    model = os.environ.get("CODEX_MODEL", "").strip()
+    if model:
+        args.extend(["--model", model])
+
+    reasoning_effort = os.environ.get("CODEX_REASONING_EFFORT", DEFAULT_CODEX_REASONING_EFFORT).strip().lower()
+    if reasoning_effort:
+        if reasoning_effort not in {"low", "medium", "high"}:
+            raise SiteGenerationError("CODEX_REASONING_EFFORT must be one of: low, medium, high")
+        args.extend(["-c", f"model_reasoning_effort={_toml_string(reasoning_effort)}"])
+
+    extra_args = os.environ.get("CODEX_EXTRA_ARGS", "").strip()
+    if extra_args:
+        args.extend(shlex.split(extra_args))
+    return args
+
+
 def _codex_exec_args() -> list[str]:
     sandbox = os.environ.get("CODEX_SANDBOX", "danger-full-access").strip()
-    return ["exec", "--sandbox", sandbox]
+    return ["exec", "--sandbox", sandbox, *_codex_config_args()]
 
 
-def run_codex_refinement(site_path: Path, instruction: str, codex_command: str = "codex", timeout_seconds: int = 1800) -> None:
+def run_codex_refinement(site_path: Path, instruction: str, codex_command: str = "codex", timeout_seconds: int = 2400) -> None:
     if not site_path.exists():
         raise SiteGenerationError(f"Cannot run in missing site path: {site_path}")
     command = [*_codex_command(codex_command), *_codex_exec_args(), instruction]
@@ -214,8 +268,15 @@ def generate_site(raw_business: Mapping[str, Any], output_dir: Path | str = DEFA
             raise SiteGenerationError(str(exc)) from exc
         used_codex = True
     if refine_with_claude:
-        from .agentic_site_builder import build_site_plan, run_claude_refinement
+        from .agentic_site_builder import run_claude_refinement
         business = normalize_business_profile(raw_business)
         run_claude_refinement(build_site_plan(business), generated.path)
         used_claude = True
-    return GeneratedSite(slug=generated.slug, path=generated.path, business_name=generated.business_name, refined_with_codex=used_codex, refined_with_claude=used_claude)
+    return GeneratedSite(
+        slug=generated.slug,
+        path=generated.path,
+        business_name=generated.business_name,
+        design_system=generated.design_system,
+        refined_with_codex=used_codex,
+        refined_with_claude=used_claude,
+    )
