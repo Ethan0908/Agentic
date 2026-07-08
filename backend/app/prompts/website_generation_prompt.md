@@ -25,6 +25,8 @@ Those files are seed context only. They are not a required layout, not a require
 
 Build a custom site that feels made for this specific business, not copied from a vertical template.
 
+The default visual north star is a minimal, editorial, image-led single-page website: calm, refined, premium, and spacious. For restaurants, cafes, bars, private dining, bakeries, boutiques, salons, spas, studios, and other atmosphere-led businesses, strongly prefer an upscale editorial restaurant style over a generic local-business landing page.
+
 The final site should:
 
 - look premium and intentional
@@ -41,8 +43,8 @@ Before editing files, silently complete this process:
 
 1. Read the business JSON and site plan.
 2. Decide the visitor's likely intent: call, book, request a quote, visit location, or review services.
-3. Choose one named design concept. Example: `quiet clinical editorial`, `neighbourhood field guide`, `gallery-led luxury reservation page`, `technical proof dossier`, or another concept that fits the business.
-4. Select a visual rhythm that is not just a hero plus equal-width cards. Use asymmetry, editorial blocks, sticky CTA, split panels, bento panels, timeline, location panel, service matrix, proof rail, or another pattern when appropriate.
+3. Choose one named design concept. Example: `quiet clinical editorial`, `neighbourhood field guide`, `gallery-led luxury reservation page`, `technical proof dossier`, `minimal editorial restaurant`, or another concept that fits the business.
+4. Select a visual rhythm that is not just a hero plus equal-width cards. Use asymmetry, editorial blocks, sticky CTA, split panels, bento panels, timeline, location panel, service matrix, proof rail, photo-led menu, reservation panel, or another pattern when appropriate.
 5. Implement the site in `app/page.tsx` and `app/globals.css`.
 6. Self-review the result against the quality checklist below and revise weak parts before finishing.
 
@@ -96,6 +98,36 @@ For each site, decide:
 - what should be removed because it feels generic
 
 The site can be one page, but it should not feel like a generic landing-page checklist. Use only sections that make sense for the business.
+
+## Editorial restaurant / atmosphere-led mode
+
+Use this mode whenever the business is a restaurant, cafe, bakery, bar, omakase, private dining room, hospitality venue, salon, spa, boutique, gallery, studio, or another business where mood, photography, and place matter.
+
+Design traits:
+
+- Minimal editorial restaurant feel: refined, intimate, spacious, and quiet.
+- Large visual imagery with careful cropping, not busy decoration.
+- Generous negative space and disciplined margins.
+- Thin or regular-weight serif display headings paired with a clean sans-serif for navigation, buttons, details, menu items, and body text.
+- Large, sometimes uppercase headings with controlled letter spacing.
+- Neutral palette: black, white, warm off-white, charcoal, soft beige, and restrained brass/gold accents.
+- Avoid bright colours, loud gradients, glassmorphism, neon, and generic SaaS styling.
+- Fixed or top-positioned minimal navigation with a few anchor links.
+- Simple rectangular or softly rounded buttons with thin borders or solid dark fills.
+- Clear vertical single-page flow: hero, atmosphere/brand thesis, menu or services, experience/process, location/contact, reservation/final CTA, footer.
+- Menu/service areas should use clean rows or columns with aligned details and prices only when prices are factual.
+- Footer should be quiet and functional: address, hours/contact if factual, website/social links if supplied.
+
+Composition ideas:
+
+- Full-width or split hero image with text layered carefully or placed beside the image.
+- Editorial intro block with one strong sentence and short supporting copy.
+- Photo ribbon or gallery strip using real photos.
+- Menu preview with refined dividers and aligned metadata.
+- Reservation/contact panel that feels like a restaurant booking card, not a generic CTA block.
+- Location block with address, service area, directions CTA, and concise visit details.
+
+The goal is luxury through restraint. Make food, interiors, service, or brand atmosphere feel premium without adding fake claims.
 
 ## Design quality bar
 
@@ -184,6 +216,7 @@ Before finishing, check the generated files for:
 - TypeScript errors from unsafe JSON assumptions
 - CSS that works only on desktop
 - sections that could be copied unchanged into any other business
+- hospitality/restaurant pages that look like SaaS templates instead of editorial, image-led experiences
 
 Fix any issue you find.
 
