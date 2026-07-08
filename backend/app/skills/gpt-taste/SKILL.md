@@ -24,6 +24,7 @@ Break the common LLM frontend defaults:
 - generic stock-looking sections;
 - layout that only looks acceptable at one desktop width;
 - local-business pages that look like generic SaaS templates;
+- restaurants, cafes, bars, salons, boutiques, spas, and studios that look like contractor pages instead of atmosphere-led editorial pages;
 - baseline sections that are technically complete but visually boring.
 
 ## Mandatory design plan before code
@@ -65,10 +66,26 @@ Approved hero families:
 - cinematic centre with strong CTA and background treatment;
 - artistic asymmetry with image or visual object;
 - editorial split with negative space;
+- minimal editorial restaurant with full-bleed or split imagery and refined type;
 - technical proof dossier for professional services;
 - local field-guide for home/service businesses;
 - quiet clinical panel for healthcare or trust-first work;
 - gallery-led luxury for restaurants, salons, boutiques, and studios.
+
+## Editorial restaurant / atmosphere-led rules
+
+For restaurants, cafes, bars, bakeries, omakase, private dining, hospitality, salons, spas, boutiques, galleries, studios, and similar businesses, favour a minimal editorial restaurant style:
+
+- large visual imagery, quiet overlays, and precise crops;
+- generous empty space, wide margins, and calm pacing;
+- thin or regular serif display headings paired with a clean sans-serif for navigation, buttons, body text, and menu/service rows;
+- neutral palette: black, white, warm off-white, charcoal, beige, and restrained brass/gold accents;
+- minimal fixed/top navigation with a few anchors;
+- simple rectangular or softly rounded buttons with thin borders or solid dark fills;
+- vertical one-page flow: hero, atmosphere/thesis, menu or services, experience/process, visit/location, contact/reservation, footer;
+- clean menu rows/columns with aligned details and prices only when factual.
+
+Avoid bright colours, heavy decoration, generic SaaS gradients, glassmorphism, icon clutter, fake menu items, fake prices, fake awards, or fake reviews. The page should feel premium because it is restrained and well-composed.
 
 ## Component arsenal
 
@@ -76,10 +93,12 @@ Choose only what fits the business:
 
 - gapless bento grid;
 - horizontal service selector;
+- refined menu/category tabs;
 - FAQ accordion;
 - contact drawer/modal;
 - sticky mobile CTA;
 - location/contact panel;
+- reservation/contact panel;
 - process timeline;
 - proof rail;
 - photo ribbon;
@@ -125,4 +144,5 @@ The final files should pass these checks:
 - no generic AI phrases;
 - no horizontal overflow;
 - mobile and desktop both look intentional;
+- atmosphere-led businesses feel image-led/editorial when assets support that direction;
 - the finished site no longer looks like the baseline scaffold.
