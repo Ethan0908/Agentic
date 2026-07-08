@@ -43,6 +43,21 @@ Prioritize:
 6. Good contrast, spacing, rhythm, and accessibility.
 7. Vercel-safe static output.
 
+## Editorial restaurant / atmosphere-led mode
+
+For restaurants, cafes, bars, bakeries, omakase, private dining, hospitality, salons, spas, boutiques, galleries, studios, and other businesses where atmosphere matters, prefer a minimal editorial restaurant style:
+
+- large image-led hero or split hero;
+- generous empty space and refined section pacing;
+- thin or regular serif headings with clean sans-serif UI/body text;
+- black, white, warm off-white, charcoal, beige, and restrained brass/gold accents;
+- minimal anchor navigation;
+- simple buttons with thin borders or solid dark fills;
+- clean menu/service rows or columns, with prices only if factual;
+- quiet final CTA and functional footer.
+
+Avoid bright colours, SaaS gradients, glassmorphism, fake menu items, fake prices, fake awards, and repeated generic card grids. Make the site feel premium through restraint, imagery, typography, spacing, and composition.
+
 ## Image rules
 
 - Use `business.photos` and `business.heroImage` when present.
@@ -72,6 +87,8 @@ Use direct, concrete wording:
 - Book an assessment.
 - Request a quote.
 - Call now.
+- View the menu.
+- Reserve or contact.
 
 ## Implementation rules
 

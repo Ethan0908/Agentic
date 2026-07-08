@@ -11,6 +11,7 @@ Good concepts:
 - Quiet clinical editorial for a dentist, therapist, or health office.
 - Warm neighbourhood atelier for a cafe, studio, bakery, or boutique.
 - Sparse luxury reservation page for an omakase, spa, or private service.
+- Minimal editorial restaurant for hospitality, food, boutique, and atmosphere-led businesses.
 - Technical proof-led layout for professional, legal, or financial services.
 - Local field-guide layout for home service, repair, or construction businesses.
 - Location-first storefront guide for businesses where address, hours, and area matter most.
@@ -43,6 +44,7 @@ Decide the one action the visitor should take. The CTA should match available co
 - website-first when the business already has a working website and no phone/email is provided;
 - email-first when email is the only contact method;
 - location-first when the visitor likely wants address/directions;
+- reservation-first for restaurants, bars, cafes, and hospitality when a booking or website path exists;
 - quote-first when services are consultative and no direct booking path exists.
 
 Avoid CTAs that go nowhere. If there is no valid link, render the CTA as explanatory copy rather than a fake button.
@@ -60,9 +62,28 @@ Design specificity can come from:
 - a photo ribbon only when real photos exist;
 - a local/address panel for storefronts;
 - a booking/contact panel for clinics and appointment businesses;
+- a reservation/location panel for restaurants and hospitality;
+- a menu/service preview with aligned details when factual data supports it;
 - an emergency call panel for urgent services only when supported by the data.
 
-## 5. Visual quality checklist
+## 5. Editorial restaurant mode
+
+For restaurants, cafes, bars, private dining, bakeries, food businesses, salons, spas, boutiques, galleries, studios, and other atmosphere-led sites, the default should be a minimal editorial restaurant style:
+
+- large imagery, careful crops, and quiet overlays;
+- generous empty space and wide margins;
+- thin or regular serif display headings with a clean sans-serif for UI and body text;
+- neutral palette: black, white, warm off-white, charcoal, beige, and restrained brass/gold accents;
+- no bright gradients, no SaaS mesh backgrounds, no glassmorphism, no random icon packs;
+- minimal anchor navigation with only the useful links;
+- simple buttons with thin borders or solid dark fills;
+- vertical single-page rhythm with hero, atmosphere, menu/services, experience, location/contact, final CTA, and footer;
+- clean menu rows/columns, with prices only when supplied as facts;
+- a quiet footer with contact, address, website, and socials only when supplied.
+
+The page should feel calm, premium, and intimate. Luxury comes from restraint, photography, typography, spacing, and editorial composition rather than heavy decoration.
+
+## 6. Visual quality checklist
 
 The final page should include:
 
@@ -75,7 +96,7 @@ The final page should include:
 - Consistent spacing and border language.
 - Accessible colour contrast.
 
-## 6. Anti-AI-design checklist
+## 7. Anti-AI-design checklist
 
 Fix these before finishing:
 
@@ -87,9 +108,10 @@ Fix these before finishing:
 - buttons have no real `href` or action;
 - photos are stretched, tiny, irrelevant, or leaking API keys in query strings;
 - mobile is only a squished desktop layout;
-- paragraphs are too long for a landing page.
+- paragraphs are too long for a landing page;
+- restaurants, cafes, bars, salons, spas, boutiques, and studios look like generic SaaS or contractor pages instead of atmosphere-led editorial pages.
 
-## 7. Do not invent facts
+## 8. Do not invent facts
 
 Never invent awards, credentials, staff names, prices, menu items, guarantees, years in business, emergency availability, same-day service, or promises.
 
@@ -101,6 +123,6 @@ When proof is missing, use careful expectation-setting instead:
 - what services are listed;
 - what information is available from the existing website.
 
-## 8. Finish criteria
+## 9. Finish criteria
 
 Remove every placeholder. The site must be coherent if screenshots are viewed without context. The site must pass `npm run build` or be written conservatively enough to pass in this scaffold.
