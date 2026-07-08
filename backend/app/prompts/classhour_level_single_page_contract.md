@@ -29,11 +29,11 @@ Codex must generate a complete single-page website with at least 9 meaningful se
 1. premium navigation with anchors and CTA;
 2. art-directed hero with headline, deck, CTA, and a distinctive visual system;
 3. compact credibility/positioning strip;
-4. belief, mission, or brand thesis section;
-5. service/program architecture section that is not just cards;
+4. belief, mission, atmosphere, or brand thesis section;
+5. service/program/menu architecture section that is not just cards;
 6. proof, experience, metrics, expectations, or decision-support section using only factual data;
 7. human/process/story section;
-8. commitments, principles, or buyer decision-guide section;
+8. commitments, principles, visit guide, or buyer decision-guide section;
 9. contact/conversion section with real contact paths;
 10. footer.
 
@@ -45,6 +45,7 @@ Before implementation, choose one high-level art direction and commit to it acro
 
 - `editorial-founder-letter`: large editorial typography, founder/story note, quiet proof, warm paper palette;
 - `luxury-gallery-page`: image-led composition, restrained palette, immersive full-bleed moments;
+- `minimal-editorial-restaurant`: large imagery, thin serif display type, clean sans-serif UI, neutral palette, menu/location/reservation rhythm;
 - `technical-proof-dossier`: precise grids, compact proof modules, confident but restrained typography;
 - `neighbourhood-field-guide`: local map/contact panel, practical service decision flow, warm documentary tone;
 - `clinical-calm-system`: airy, low-noise, trust-first design with carefully controlled contrast.
@@ -56,12 +57,40 @@ The site fails if it looks like a generic website where only the business name c
 The generated site must use custom fonts through `next/font/google` unless the project cannot access the package. Pair a high-quality display font with a readable body font. Examples:
 
 - `Cormorant_Garamond` + `Inter` for editorial/luxury;
+- `Cormorant_Garamond` + `Manrope` for minimal editorial restaurant/hospitality pages;
 - `DM_Serif_Display` + `Manrope` for premium local brands;
 - `Playfair_Display` + `Source_Sans_3` for boutique/editorial;
 - `Fraunces` + `Instrument_Sans` for warm modern brands;
 - `Space_Grotesk` + `Inter` for technical/proof-led brands.
 
 Do not use browser default fonts for the final site. Do not leave `Arial`, `Helvetica`, or raw `system-ui` as the main visual identity.
+
+## Editorial restaurant / atmosphere-led contract
+
+For restaurants, cafes, bars, bakeries, omakase, private dining, hospitality, salons, spas, boutiques, galleries, studios, and other businesses where atmosphere matters, Codex should build a restrained editorial single-page site instead of a generic local-business landing page.
+
+Mandatory traits for this mode:
+
+- minimal, refined, intimate, spacious visual tone;
+- real imagery used as the main atmosphere driver when supplied;
+- warm off-white, black, charcoal, beige, and subtle brass/gold accents;
+- large serif headings paired with clean sans-serif navigation, buttons, menu rows, and body copy;
+- generous section spacing and wide margins;
+- clear vertical page flow with hero, atmosphere/thesis, menu or services, experience/process, visit/location, contact/reservation, footer;
+- minimal navigation, ideally fixed or placed at the top, with only useful anchors;
+- simple rectangular or softly rounded buttons with thin borders or solid dark fills;
+- menu/service sections organized in clean rows or columns, with prices aligned only when actual prices exist;
+- footer kept functional and quiet.
+
+Avoid in this mode:
+
+- bright colours;
+- flashy gradients;
+- generic SaaS mesh backgrounds;
+- heavy decoration;
+- oversized review/stat badges unless factual;
+- repeated card grids as the dominant section pattern;
+- fake menu items, fake prices, fake awards, fake chef/staff details, or fake reservation systems.
 
 ## Required implementation depth
 
@@ -72,7 +101,7 @@ The final implementation must feel like a real product page:
 - use data helpers for phone/email/website CTA links;
 - use real anchor navigation;
 - use a mobile sticky CTA when contact data exists;
-- include at least one useful interaction if it fits the data, such as FAQ/details disclosure, service tabs, contact drawer, expandable principles, or comparison toggle;
+- include at least one useful interaction if it fits the data, such as FAQ/details disclosure, service tabs, contact drawer, expandable principles, menu/category tabs, or comparison toggle;
 - include full responsive CSS with desktop/tablet/mobile behaviour;
 - include polished hover/focus states and reduced-motion handling;
 - include a real final CTA/contact experience and footer;
@@ -90,6 +119,7 @@ Use at least four different section rhythms:
 - asymmetric bento with no empty holes;
 - full-bleed image or CSS-art panel;
 - service architecture/tabs, not simple cards only;
+- menu/service rows with refined dividers for hospitality pages;
 - proof/expectations grid;
 - high-contrast final CTA.
 
@@ -119,6 +149,7 @@ Ask:
 - Is there a real conversion/contact path?
 - Does mobile feel intentionally designed?
 - Could this page belong to any business if I changed only the name?
+- For atmosphere-led businesses, does it feel like a minimal editorial restaurant/boutique page rather than a SaaS or contractor template?
 
 If the answer reveals shell/template quality, rebuild the page instead of patching details.
 
@@ -130,6 +161,7 @@ The output fails if:
 - it has fewer than 9 meaningful sections;
 - it uses default fonts;
 - it is mostly repeated service cards;
+- restaurants, hospitality, boutiques, salons, spas, or studios do not feel image-led and editorial when facts/assets support that direction;
 - it does not include custom `next/font` usage or an intentional font stack;
 - it has no real mobile design;
 - it has no final CTA/contact experience;
