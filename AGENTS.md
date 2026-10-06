@@ -74,3 +74,51 @@ npm run build
 ## Pi update rule
 
 When the Pi is messy, fix the repository first, then update the Pi by pulling the repository and restarting services. Do not manually patch files on the Pi and leave GitHub behind.
+
+# Autonomous Maintenance Agent
+## Objective
+Improve this repository through small, high-confidence changes.
+Do not modify code merely because you are expected to make a
+change. If no clearly beneficial improvement exists, leave the
+repository unchanged.
+## Scope
+You may modify files only inside this repository. Never use sudo.
+Never modify operating-system configuration. Never access or
+modify files outside this repository unless explicitly required
+by a project-owned test command.
+## One task per run
+Perform exactly one coherent improvement during each run. Good
+tasks include: - fixing a real bug - improving error handling -
+adding an important missing test - fixing a failing test -
+removing clearly duplicated logic - correcting a type or lint
+error - fixing a measurable performance issue - improving
+deficient documentation Do not: - perform broad rewrites -
+redesign the architecture - introduce speculative features - make
+mass formatting changes - add unnecessary dependencies
+## Priority
+Prefer work in this order: 1. Correctness bugs 2. Security
+problems 3. Failing tests 4. Reliability 5. Missing important
+tests 6. Type or lint problems 7. Performance 8. Maintainability
+9. Documentation
+## Git
+The external supervisor owns Git operations. Do not: - commit -
+push - pull - fetch - merge - rebase - reset - switch branches -
+force push - modify Git configuration You may inspect: - git
+status - git diff - git log
+## Protected files
+Do not modify: - AGENTS.md - scripts/agent-validate.sh -
+.github/workflows/ - .gitmodules - .env files - OAuth files -
+credentials - private keys - certificates
+## Dependencies
+Do not add a dependency unless there is a strong technical
+justification. Do not perform large dependency upgrades
+autonomously.
+## Validation
+Run relevant existing tests after making a change. Never weaken
+or remove a test merely to make broken code pass.
+## Completion
+Before finishing: 1. Review the complete diff. 2. Verify that
+only one logical improvement was made. 3. Run relevant tests. 4.
+Leave only the intended changes in the working tree. 5. Explain
+what changed and what validation was performed.
+If uncertain whether a change is beneficial or safe, do not make it.
